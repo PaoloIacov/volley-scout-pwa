@@ -1,0 +1,47 @@
+.team-image-enhanced {
+  object-fit: cover;
+  height: 400px;
+  max-height: 50vh;
+  object-position: center;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.clickable-image:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+  cursor: pointer;
+}
+
+.maps-link {
+  transition: all 0.3s ease;
+  border: 1px solid #333;
+}
+
+.maps-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  background-color: #1a1a1a !important;
+  border-color: #dc3545;
+}
+
+@media (max-width: 768px) {
+  .team-image-enhanced {
+    height: 300px;
+    max-height: 45vh;
+  }
+
+  .maps-link:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .team-image-enhanced {
+    height: 250px;
+    max-height: 40vh;
+  }
+
+  .clickable-image:hover {
+    transform: none;
+  }
+}

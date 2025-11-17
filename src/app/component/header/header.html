@@ -1,0 +1,30 @@
+<nav class="navbar navbar-dark bg-dark">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button" (click)="toggleMenu()">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <span class="navbar-brand mx-auto">1DM Albano Circo <i class="bi bi-stars"></i></span>
+  </div>
+</nav>
+
+<div class="offcanvas offcanvas-start" [class.show]="menuOpen" tabindex="-1">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title">Menu</h5>
+    <button type="button" class="btn-close" (click)="toggleMenu()"></button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="nav flex-column">
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/home" (click)="toggleMenu()">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/squadra" (click)="toggleMenu()">Squadra</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/calendario" (click)="toggleMenu()">Calendario</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="offcanvas-backdrop fade" [class.show]="menuOpen" (click)="toggleMenu()" *ngIf="menuOpen"></div>
