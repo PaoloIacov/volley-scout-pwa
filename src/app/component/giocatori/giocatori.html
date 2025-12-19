@@ -1,1 +1,140 @@
-<p>giocatori works!</p>
+<div class="container mt-4">
+  <!-- Header con titolo e azioni -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0 header-card">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-12 col-lg-6 mb-3 mb-lg-0">
+              <div class="d-flex align-items-center">
+                <div class="icon-wrapper me-3">
+                  <i class="bi bi-people-fill"></i>
+                </div>
+                <div>
+                  <h3 class="mb-1 fw-bold">Gestione Giocatori</h3>
+                  <p class="text-muted mb-0 small">
+                    <i class="bi bi-person-badge me-1"></i>
+                    {{ giocatori.length }} {{ giocatori.length === 1 ? 'giocatore' : 'giocatori' }} in rosa
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                <button class="btn btn-danger btn-action" (click)="openDialog()">
+                  <i class="bi bi-plus-circle-fill me-2"></i>
+                  <span>Nuovo</span>
+                </button>
+                <button class="btn btn-outline-dark btn-action" (click)="importGiocatori()">
+                  <i class="bi bi-upload me-2"></i>
+                  <span>Importa</span>
+                </button>
+                <button class="btn btn-outline-dark btn-action" (click)="exportGiocatori()" [disabled]="giocatori.length === 0">
+                  <i class="bi bi-download me-2"></i>
+                  <span>Esporta</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messaggio se non ci sono giocatori -->
+  <div *ngIf="giocatori.length === 0" class="row">
+    <div class="col-12">
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle me-2"></i>
+        Nessun giocatore presente. Aggiungi il primo giocatore o importa un file JSON.
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista Desktop: Tabella -->
+  <div class="row desktop-view" *ngIf="giocatori.length > 0">
+    <div class="col-12">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-center" style="width: 100px;">N°</th>
+              <th>Nome</th>
+              <th>Cognome</th>
+              <th>Ruolo</th>
+              <th class="text-center" style="width: 120px;">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let giocatore of giocatori; let i = index">
+              <td class="text-center">
+                <span class="badge bg-dark text-danger fs-5 fw-bold px-3 py-2">
+                  {{ giocatore.numeroMaglia }}
+                </span>
+              </td>
+              <td>{{ giocatore.nome }}</td>
+              <td>{{ giocatore.cognome }}</td>
+              <td>
+                <i [class]="getRuoloIcon(giocatore.ruolo) + ' me-2 text-danger'"></i>
+                {{ giocatore.ruolo }}
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary me-1" (click)="openDialog(giocatore, i)" title="Modifica">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" (click)="deleteGiocatore(i)" title="Elimina">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista Mobile: Cards -->
+  <div class="row mobile-view" *ngIf="giocatori.length > 0">
+    <div class="col-12">
+      <div class="card giocatore-card mb-3" *ngFor="let giocatore of giocatori; let i = index">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-3">
+            <!-- Numero Maglia -->
+            <div class="numero-maglia-mobile">
+              <div class="badge bg-dark text-danger">
+                {{ giocatore.numeroMaglia }}
+              </div>
+            </div>
+            
+            <!-- Info Giocatore -->
+            <div class="flex-grow-1">
+              <h5 class="mb-1 fw-bold">{{ giocatore.nome }} {{ giocatore.cognome }}</h5>
+              <p class="mb-0 text-muted small">
+                <i [class]="getRuoloIcon(giocatore.ruolo) + ' me-1 text-danger'"></i>
+                {{ giocatore.ruolo }}
+              </p>
+            </div>
+            
+            <!-- Azioni -->
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-primary" (click)="openDialog(giocatore, i)" title="Modifica">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-danger" (click)="deleteGiocatore(i)" title="Elimina">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dialog Component -->
+<app-dialog-giocatore 
+  [show]="showDialog" 
+  [giocatore]="editingGiocatore"
+  (save)="onSaveGiocatore($event)"
+  (cancel)="closeDialog()">
+</app-dialog-giocatore>

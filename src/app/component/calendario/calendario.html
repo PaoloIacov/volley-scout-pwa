@@ -1,1 +1,144 @@
-<p>calendario works!</p>
+<div class="container mt-4">
+  <!-- Header con titolo e azioni -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0 header-card">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-12 col-lg-6 mb-3 mb-lg-0">
+              <div class="d-flex align-items-center">
+                <div class="icon-wrapper me-3">
+                  <i class="bi bi-calendar-event"></i>
+                </div>
+                <div>
+                  <h3 class="mb-1 fw-bold">Calendario Partite</h3>
+                  <p class="text-muted mb-0 small">
+                    <i class="bi bi-list-check me-1"></i>
+                    {{ partite.length }} {{ partite.length === 1 ? 'partita' : 'partite' }} in programma
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                <button class="btn btn-danger btn-action" (click)="openDialog()">
+                  <i class="bi bi-plus-circle-fill me-2"></i>
+                  <span>Nuova</span>
+                </button>
+                <button class="btn btn-outline-dark btn-action" (click)="importPartite()">
+                  <i class="bi bi-upload me-2"></i>
+                  <span>Importa</span>
+                </button>
+                <button class="btn btn-outline-dark btn-action" (click)="exportPartite()" [disabled]="partite.length === 0">
+                  <i class="bi bi-download me-2"></i>
+                  <span>Esporta</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messaggio se non ci sono partite -->
+  <div *ngIf="partite.length === 0" class="row">
+    <div class="col-12">
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle me-2"></i>
+        Nessuna partita in calendario. Aggiungi la prima partita o importa un file JSON.
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista Desktop: Tabella -->
+  <div class="row desktop-view" *ngIf="partite.length > 0">
+    <div class="col-12">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th style="width: 120px;">Data</th>
+              <th style="width: 100px;">Orario</th>
+              <th>Avversario</th>
+              <th>Luogo</th>
+              <th class="text-center" style="width: 120px;">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let partita of partite; let i = index">
+              <td>
+                <span class="badge bg-dark text-danger px-3 py-2">
+                  <i class="bi bi-calendar3 me-1"></i>
+                  {{ partita.data }}
+                </span>
+              </td>
+              <td>
+                <i class="bi bi-clock me-1 text-danger"></i>
+                {{ partita.orarioInizio }}
+              </td>
+              <td class="fw-semibold">{{ partita.avversario }}</td>
+              <td>
+                <i class="bi bi-geo-alt me-1 text-danger"></i>
+                {{ partita.luogo }}
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary me-1" (click)="openDialog(partita, i)" title="Modifica">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" (click)="deletePartita(i)" title="Elimina">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista Mobile: Cards -->
+  <div class="row mobile-view" *ngIf="partite.length > 0">
+    <div class="col-12">
+      <div class="card partita-card mb-3" *ngFor="let partita of partite; let i = index">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h5 class="mb-1 fw-bold">{{ partita.avversario }}</h5>
+              <p class="mb-1 small text-muted">
+                <i class="bi bi-geo-alt me-1 text-danger"></i>
+                {{ partita.luogo }}
+              </p>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-primary" (click)="openDialog(partita, i)" title="Modifica">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-danger" (click)="deletePartita(i)" title="Elimina">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </div>
+          </div>
+          <div class="d-flex gap-3 mt-2">
+            <span class="badge bg-dark text-danger px-3 py-2">
+              <i class="bi bi-calendar3 me-1"></i>
+              {{ partita.data }}
+            </span>
+            <span class="badge bg-dark text-danger px-3 py-2">
+              <i class="bi bi-clock me-1"></i>
+              {{ partita.orarioInizio }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dialog Component -->
+<app-dialog-partita 
+  [show]="showDialog" 
+  [partita]="editingPartita"
+  (save)="onSavePartita($event)"
+  (cancel)="closeDialog()">
+</app-dialog-partita>

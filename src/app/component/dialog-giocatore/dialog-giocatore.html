@@ -1,1 +1,79 @@
-<p>dialog-giocatore works!</p>
+<div class="modal fade" [class.show]="show" [style.display]="show ? 'block' : 'none'" tabindex="-1" *ngIf="show">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <i class="bi bi-person-fill me-2 text-danger"></i>
+          {{ isEditMode ? 'Modifica Giocatore' : 'Nuovo Giocatore' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="onCancel()"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="giocatoreForm">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="nome" class="form-label">Nome *</label>
+              <input type="text" class="form-control" id="nome" formControlName="nome" 
+                     [class.is-invalid]="getFieldError('nome', 'required') || getFieldError('nome', 'minlength')"
+                     placeholder="Inserisci il nome">
+              <div class="invalid-feedback" *ngIf="getFieldError('nome', 'required')">
+                Il nome è obbligatorio
+              </div>
+              <div class="invalid-feedback" *ngIf="getFieldError('nome', 'minlength')">
+                Il nome deve avere almeno 2 caratteri
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="cognome" class="form-label">Cognome *</label>
+              <input type="text" class="form-control" id="cognome" formControlName="cognome"
+                     [class.is-invalid]="getFieldError('cognome', 'required') || getFieldError('cognome', 'minlength')"
+                     placeholder="Inserisci il cognome">
+              <div class="invalid-feedback" *ngIf="getFieldError('cognome', 'required')">
+                Il cognome è obbligatorio
+              </div>
+              <div class="invalid-feedback" *ngIf="getFieldError('cognome', 'minlength')">
+                Il cognome deve avere almeno 2 caratteri
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="numeroMaglia" class="form-label">Numero Maglia *</label>
+              <input type="number" class="form-control" id="numeroMaglia" formControlName="numeroMaglia"
+                     [class.is-invalid]="getFieldError('numeroMaglia', 'required') || getFieldError('numeroMaglia', 'min') || getFieldError('numeroMaglia', 'max')"
+                     placeholder="1-99">
+              <div class="invalid-feedback" *ngIf="getFieldError('numeroMaglia', 'required')">
+                Il numero di maglia è obbligatorio
+              </div>
+              <div class="invalid-feedback" *ngIf="getFieldError('numeroMaglia', 'min') || getFieldError('numeroMaglia', 'max')">
+                Il numero deve essere tra 1 e 99
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="ruolo" class="form-label">Ruolo *</label>
+              <select class="form-select" id="ruolo" formControlName="ruolo"
+                      [class.is-invalid]="getFieldError('ruolo', 'required')">
+                <option value="" selected disabled>Seleziona un ruolo</option>
+                <option *ngFor="let ruolo of ruoli" [value]="ruolo">{{ ruolo }}</option>
+              </select>
+              <div class="invalid-feedback" *ngIf="getFieldError('ruolo', 'required')">
+                Il ruolo è obbligatorio
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="onCancel()">
+          <i class="bi bi-x-circle me-1"></i>
+          Annulla
+        </button>
+        <button type="button" class="btn btn-danger" (click)="onSave()" [disabled]="!giocatoreForm.valid">
+          <i class="bi bi-check-circle me-1"></i>
+          {{ isEditMode ? 'Salva' : 'Aggiungi' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade" [class.show]="show" *ngIf="show"></div>

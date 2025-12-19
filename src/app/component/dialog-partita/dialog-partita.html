@@ -1,0 +1,74 @@
+<div class="modal fade" [class.show]="show" [style.display]="show ? 'block' : 'none'" tabindex="-1" *ngIf="show">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <i class="bi bi-calendar-event me-2 text-danger"></i>
+          {{ isEditMode ? 'Modifica Partita' : 'Nuova Partita' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="onCancel()"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="partitaForm">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="data" class="form-label">Data *</label>
+              <input type="date" class="form-control" id="data" formControlName="data" 
+                     [class.is-invalid]="getFieldError('data', 'required')">
+              <div class="invalid-feedback" *ngIf="getFieldError('data', 'required')">
+                La data è obbligatoria
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="orarioInizio" class="form-label">Orario *</label>
+              <input type="time" class="form-control" id="orarioInizio" formControlName="orarioInizio"
+                     [class.is-invalid]="getFieldError('orarioInizio', 'required')">
+              <div class="invalid-feedback" *ngIf="getFieldError('orarioInizio', 'required')">
+                L'orario è obbligatorio
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12 mb-3">
+              <label for="avversario" class="form-label">Avversario *</label>
+              <input type="text" class="form-control" id="avversario" formControlName="avversario"
+                     [class.is-invalid]="getFieldError('avversario', 'required') || getFieldError('avversario', 'minlength')"
+                     placeholder="Nome squadra avversaria">
+              <div class="invalid-feedback" *ngIf="getFieldError('avversario', 'required')">
+                L'avversario è obbligatorio
+              </div>
+              <div class="invalid-feedback" *ngIf="getFieldError('avversario', 'minlength')">
+                L'avversario deve avere almeno 2 caratteri
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12 mb-3">
+              <label for="luogo" class="form-label">Luogo *</label>
+              <input type="text" class="form-control" id="luogo" formControlName="luogo"
+                     [class.is-invalid]="getFieldError('luogo', 'required') || getFieldError('luogo', 'minlength')"
+                     placeholder="Campo di gioco">
+              <div class="invalid-feedback" *ngIf="getFieldError('luogo', 'required')">
+                Il luogo è obbligatorio
+              </div>
+              <div class="invalid-feedback" *ngIf="getFieldError('luogo', 'minlength')">
+                Il luogo deve avere almeno 2 caratteri
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="onCancel()">
+          <i class="bi bi-x-circle me-1"></i>
+          Annulla
+        </button>
+        <button type="button" class="btn btn-danger" (click)="onSave()" [disabled]="!partitaForm.valid">
+          <i class="bi bi-check-circle me-1"></i>
+          {{ isEditMode ? 'Salva' : 'Aggiungi' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade" [class.show]="show" *ngIf="show"></div>

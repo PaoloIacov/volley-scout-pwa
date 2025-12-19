@@ -6,8 +6,11 @@
         <div class="position-relative">
           <a routerLink="/squadra" class="text-decoration-none d-block">
             <img ngSrc="assets/images/circo.JPG"
-                 alt="Punto Volley CR ASD Thunders"
-                 class="img-fluid w-100 team-image-enhanced clickable-image" height="673" width="1158">
+                 alt="Prima Divisione Maschile Blu"
+                 class="img-fluid w-100 team-image-enhanced clickable-image" 
+                 height="673" 
+                 width="1158"
+                 priority>
             <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white text-center py-3">
               <h4 class="mb-0 fw-bold">Prima Divisione Maschile Blu 2025/2026</h4>
               <small class="opacity-75">
@@ -34,38 +37,31 @@
         <div class="card-body">
           <!-- Layout responsive ottimizzato -->
           <div class="row g-3">
-            <!-- Su mobile: stack verticale, su tablet e desktop: layout orizzontale -->
-            <div class="col-12 col-sm-6 col-lg-3 mb-2">
-              <div class="text-center p-3 bg-dark text-white rounded h-100">
-                <h5 class="text-danger mb-2">
-                  <i class="bi bi-calendar-day me-1"></i>
-                  Lunedì
+            <!-- Card allenamenti compatta -->
+            <div class="col-12 col-lg-8 mb-2">
+              <div class="p-3 bg-dark text-white rounded h-100">
+                <h5 class="text-danger mb-3">
+                  <i class="bi bi-calendar-week me-2"></i>
+                  Allenamenti
                 </h5>
-                <p class="mb-1 fw-bold">21:00 - 22:45</p>
-                <small class="text-muted">Allenamento</small>
+                <div class="training-schedule">
+                  <div class="training-item">
+                    <span class="day-label">Lunedì</span>
+                    <span class="time-label">21:00 - 22:45</span>
+                  </div>
+                  <div class="training-item">
+                    <span class="day-label">Mercoledì</span>
+                    <span class="time-label">21:00 - 22:45</span>
+                  </div>
+                  <div class="training-item">
+                    <span class="day-label">Giovedì</span>
+                    <span class="time-label">21:00 - 22:45</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2">
-              <div class="text-center p-3 bg-dark text-white rounded h-100">
-                <h5 class="text-danger mb-2">
-                  <i class="bi bi-calendar-day me-1"></i>
-                  Mercoledì
-                </h5>
-                <p class="mb-1 fw-bold">21:00 - 22:45</p>
-                <small class="text-muted">Allenamento</small>
-              </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2">
-              <div class="text-center p-3 bg-dark text-white rounded h-100">
-                <h5 class="text-danger mb-2">
-                  <i class="bi bi-calendar-day me-1"></i>
-                  Giovedì
-                </h5>
-                <p class="mb-1 fw-bold">21:00 - 22:45</p>
-                <small class="text-muted">Allenamento</small>
-              </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3 mb-2">
+            <!-- Card partite -->
+            <div class="col-12 col-lg-4 mb-2">
               <div class="text-center p-3 bg-dark text-white rounded h-100 position-relative">
                 <h5 class="text-danger mb-2">
                   <i class="bi bi-calendar-event me-1"></i>
