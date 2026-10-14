@@ -1,59 +1,54 @@
-# VolleyScoutPwa
+# Volley Scout PWA
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.6.
+Applicazione PWA per la gestione della **1DM Albano Circo**: rosa dei giocatori,
+calendario partite e appuntamenti settimanali.
 
-## Development server
+Riscritta completamente in **React** (Vite + Tailwind CSS v4), con interfaccia
+scuro moderna, uniforme e responsive (tab bar dedicata su mobile).
 
-To start a local development server, run:
+## Stack
 
-```bash
-ng serve
-```
+- **React 19** + **Vite 8** — build e dev server rapidi
+- **React Router 7** (Hash Router: funziona senza configurazione del server, ideale per GitHub Pages)
+- **Tailwind CSS v4** (`@tailwindcss/vite`) — design system a utility class
+- **lucide-react** — icone uniformi
+- **vite-plugin-pwa** — manifest + service worker (Workbox) per l'installazione offline
+- Dati salvati in **localStorage** (nessun backend)
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Funzionalità
 
-## Code scaffolding
+- **Home**: hero della squadra, statistiche rapide, orari di allenamento,
+  prossima partita, sede ufficiale con link a Google Maps
+- **Squadra**: CRUD giocatori (nome, cognome, numero maglia, ruolo),
+  validazione dei campi, import/export JSON
+- **Calendario**: CRUD partite (data, orario, avversario, luogo),
+  ordinamento per data, evidenziazione delle gare passate, import/export JSON
+- **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+## Sviluppo
 
 ```bash
-ng build
+npm install
+npm run dev        # server di sviluppo su http://localhost:5173
+npm run build      # build di produzione in dist/
+npm run preview    # anteprima della build di produzione
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## Deploy
 
-## Running unit tests
+Il workflow GitHub Actions `.github/workflows/deploy.yml` esegue `npm run build`
+e pubblica `dist/` su GitHub Pages a ogni push su `main`.
+In produzione l'app vive sotto `/volley-scout-pwa/` (base path impostata in
+`vite.config.js`).
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Struttura
 
-```bash
-ng test
 ```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
+src/
+├── components/   # Layout, Toast, elementi di UI riusabili (Modal, Button, Card…)
+├── forms/        # Form modali con validazione (giocatore, partita)
+├── hooks/        # useForm (validazione touched/submit)
+├── lib/          # storage, date, import/export JSON
+├── pages/        # Home, Squadra, Calendario
+└── services/     # accesso ai dati (localStorage) con normalizzazione
 ```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
