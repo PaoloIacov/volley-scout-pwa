@@ -106,14 +106,21 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className={`mx-auto w-full ${larghezza} flex-1 px-4 pt-6 pb-10 sm:px-6`}>
+      <main
+        className={`mx-auto w-full ${larghezza} flex-1 px-4 sm:px-6 ${
+          inScouting ? 'pt-4 pb-6' : 'pt-6 pb-10'
+        }`}
+      >
         <Outlet />
       </main>
 
-      <footer className="hidden border-t border-line py-6 text-center text-xs text-ink-faint sm:block">
-        Volley Scout{squadra ? ` · ${titolo}` : ''}
-        {squadra?.stagione ? ` · Stagione ${squadra.stagione}` : ''}
-      </footer>
+      {/* In scouting il footer sparisce: ogni pixel serve ai dati */}
+      {!inScouting && (
+        <footer className="hidden border-t border-line py-6 text-center text-xs text-ink-faint sm:block">
+          Volley Scout{squadra ? ` · ${titolo}` : ''}
+          {squadra?.stagione ? ` · Stagione ${squadra.stagione}` : ''}
+        </footer>
+      )}
 
       {/* Tab bar mobile */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-panel/90 pb-safe backdrop-blur-lg lg:hidden">

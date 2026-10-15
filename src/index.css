@@ -81,6 +81,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+  Safari (iOS/iPadOS) tratta data e ora come controlli inline-flex e ignora
+  width:100%: il campo esce dalla sua colonna e si sovrappone ai campi
+  affiancati (es. Data che copre Orario nel form nuovo scout).
+  Forziamo il blocco e i limiti di larghezza; il padding interno di Safari
+  viene azzerato così l'altezza resta uguale a quella degli altri input.
+*/
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='week'] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+input[type='date']::-webkit-datetime-edit,
+input[type='time']::-webkit-datetime-edit,
+input[type='datetime-local']::-webkit-datetime-edit,
+input[type='month']::-webkit-datetime-edit,
+input[type='week']::-webkit-datetime-edit {
+  padding: 0;
+}
+
 /* Spazio per la tab bar mobile */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);

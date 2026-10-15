@@ -71,6 +71,8 @@ export default function ScoutSessione() {
 
   const selezionaSet = (n) => aggiorna({ ...scout, setCorrente: n });
 
+  const cambiaInCampo = (inCampo) => aggiorna({ ...scout, inCampo });
+
   const aggiungiSet = () => {
     if (scout.sets.length >= SET_MASSIMO) return;
     const n = scout.sets.length + 1;
@@ -208,7 +210,7 @@ export default function ScoutSessione() {
     scout.squadraOsservata === 'propria' ? (squadra?.nome ?? 'La mia squadra') : 'Avversaria';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Intestazione */}
       <div className="flex items-center gap-3">
         <IconButton label="Torna all'elenco scout" onClick={() => navigate('/scout')}>
@@ -252,6 +254,7 @@ export default function ScoutSessione() {
           azioneSel={azioneSel}
           setAzioneSel={setAzioneSel}
           onRegistra={registra}
+          onCambiaInCampo={cambiaInCampo}
           onAnnullaUltimo={annullaUltimo}
           onRimuoviAzione={rimuoviAzione}
           onRimuoviGenerico={rimuoviGenerico}

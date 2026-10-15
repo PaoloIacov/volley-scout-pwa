@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useToast } from '../Toast.jsx';
 import { Button, Card } from '../ui.jsx';
 import { AZIONI, ESITI, ESITO_CLASSI, isLibero } from '../../lib/scout-stats.js';
@@ -7,20 +8,22 @@ const LABEL_AZIONE = Object.fromEntries(AZIONI.map((azione) => [azione.id, azion
 const LABEL_ESITO = Object.fromEntries(ESITI.map((esito) => [esito.id, esito.label]));
 
 const BTN_GIOCATORE =
-  'flex h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border transition-colors duration-150';
+  'flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition-colors duration-150 sm:h-14 sm:gap-1 sm:text-base';
 const GIOCATORE_OFF = 'border-line-strong bg-panel-2 text-ink hover:border-ink-faint';
 /** Tonalità leggermente diversa: i liberi si riconoscono a colpo d'occhio. */
 const GIOCATORE_LIBERO = 'border-info/45 bg-info/10 text-ink hover:border-info/70';
 const GIOCATORE_ON = 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25';
+const GIOCATORE_PANCHINA =
+  'cursor-not-allowed border-line bg-panel text-ink-faint opacity-55';
 
 const BTN_AZIONE =
-  'h-14 cursor-pointer rounded-xl border text-sm font-semibold transition-colors duration-150';
+  'h-11 cursor-pointer rounded-xl border px-1 text-xs font-semibold transition-colors duration-150 sm:h-14 sm:px-2 sm:text-sm';
 const AZIONE_OFF =
   'border-line-strong bg-panel-2 text-ink-soft hover:border-ink-faint hover:text-ink';
 const AZIONE_ON = 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25';
 
 const BTN_ESITO =
-  'flex h-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-transparent transition-colors duration-150';
+  'flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl border border-transparent transition-colors duration-150 sm:h-16 sm:gap-1';
 const ESITO_OFF = 'ring-1';
 
 /**
@@ -35,6 +38,7 @@ export default function Inserimento({
   azioneSel,
   setAzioneSel,
   onRegistra,
+  onCambiaInCampo,
   onAnnullaUltimo,
   onRimuoviAzione,
   onRimuoviGenerico,
@@ -54,6 +58,50 @@ export default function Inserimento({
     giocatori.map((giocatore) => [giocatore.numeroMaglia, giocatore.cognome || giocatore.nome]),
   );
   const liberi = new Set(giocatori.filter(isLibero).map((giocatore) => giocatore.numeroMaglia));
+  const numeriDisponibili = new Set(numeri);
+  const movimento = numeri.filter((numero) => !liberi.has(numero));
+  const defaultInCampo = [
+    ...movimento.slice(0, 6),
+    ...numeri.filter((numero) => liberi.has(numero)).slice(0, 1),
+  ];
+  const configuratiInCampo = [...new Set(
+    (scout.inCampo ?? defaultInCampo).filter((numero) => numeriDisponibili.has(numero)),
+  )];
+  const inCampo = osservaRosa
+    ? [
+        ...configuratiInCampo.filter((numero) => !liberi.has(numero)).slice(0, 6),
+        ...configuratiInCampo.filter((numero) => liberi.has(numero)).slice(0, 1),
+      ]
+    : numeri;
+  const numeriInCampo = new Set(inCampo);
+  const [numeroTrascinato, setNumeroTrascinato] = useState(null);
+  const [posizioneTrascinamento, setPosizioneTrascinamento] = useState(null);
+  const trascinatoRef = useRef(false);
+
+  useEffect(() => {
+    if (numeroTrascinato === null) return undefined;
+
+    const aggiornaPosizione = (event) => {
+      setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
+    };
+    const rilasciaGiocatore = (event) => {
+      const area = event.target.closest?.('[data-drop-zone]');
+      if (area) {
+        spostaGiocatore(numeroTrascinato, area.dataset.dropZone === 'campo');
+      }
+      setNumeroTrascinato(null);
+      setPosizioneTrascinamento(null);
+    };
+
+    document.addEventListener('pointermove', aggiornaPosizione);
+    document.addEventListener('pointerup', rilasciaGiocatore);
+    document.addEventListener('pointercancel', rilasciaGiocatore);
+    return () => {
+      document.removeEventListener('pointermove', aggiornaPosizione);
+      document.removeEventListener('pointerup', rilasciaGiocatore);
+      document.removeEventListener('pointercancel', rilasciaGiocatore);
+    };
+  }, [numeroTrascinato]);
   /** Il libero non compie battuta né muro (solo se osserviamo la nostra rosa). */
   const azioneNonValida = (numero, azione) =>
     numero !== null &&
@@ -63,10 +111,27 @@ export default function Inserimento({
   const liberoSel = numeroSel !== null && osservaRosa && liberi.has(numeroSel);
 
   const selezionaGiocatore = (numero) => {
+    if (osservaRosa && !numeriInCampo.has(numero)) return;
     const prossimo = numeroSel === numero ? null : numero;
     setNumeroSel(prossimo);
     // Un'azione non valida per il libero viene azzerata.
     if (azioneNonValida(prossimo, azioneSel)) setAzioneSel(null);
+  };
+
+  const spostaGiocatore = (numero, destinazione) => {
+    if (!osservaRosa || numero === null) return;
+    const giaInCampo = numeriInCampo.has(numero);
+    if (giaInCampo === destinazione) return;
+    const prossimo = destinazione
+      ? [...inCampo, numero]
+      : inCampo.filter((voce) => voce !== numero);
+    const movimentoInCampo = prossimo.filter((voce) => !liberi.has(voce)).length;
+    const liberiInCampo = prossimo.filter((voce) => liberi.has(voce)).length;
+    if (movimentoInCampo > 6 || liberiInCampo > 1) {
+      toast.show('In campo puoi avere 6 giocatori e 1 libero.', 'error');
+      return;
+    }
+    onCambiaInCampo(prossimo);
   };
 
   const registra = (esito) => {
@@ -96,8 +161,10 @@ export default function Inserimento({
   const ultimo = eventi[eventi.length - 1] ?? null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
-      <Card className="p-4 sm:p-5">
+    // Da md (tablet) la colonna laterale affianca l'inserimento: su iPad
+    // tutta la scrimata sta in un'unica schermata, senza scroll.
+    <div className="flex flex-col gap-4">
+      <Card className="w-full p-2 sm:p-4">
         {/* Giocatore */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-ink">Giocatore</h2>
@@ -105,8 +172,89 @@ export default function Inserimento({
             {numeroSel !== null ? `Selezionato: ${numeroSel}` : 'Tocca un numero'}
           </p>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-10">
-          {numeri.map((numero) => {
+        {osservaRosa ? (
+          <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-4 lg:grid-cols-2">
+            {[
+              ['In campo', numeri.filter((numero) => numeriInCampo.has(numero)), true],
+              ['Panchina', numeri.filter((numero) => !numeriInCampo.has(numero)), false],
+            ].map(([titolo, elenco, attivo]) => (
+              <div
+                key={titolo}
+                className="rounded-xl border border-line bg-panel-2 p-2 sm:p-3"
+                data-drop-zone={attivo ? 'campo' : 'panchina'}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-mute">
+                    {titolo}
+                  </h3>
+                  <span className="text-xs text-ink-faint">
+                    {elenco.length}/{attivo ? '6 + 1 L' : numeri.length}
+                  </span>
+                </div>
+                <div className="mt-1.5 grid grid-cols-4 gap-1.5 sm:mt-2 sm:grid-cols-4 sm:gap-2 xl:grid-cols-6">
+                  {elenco.map((numero) => {
+                    const attivoSelezionato = numeroSel === numero;
+                    const cognome = cognomi.get(numero);
+                    const libero = liberi.has(numero);
+                    return (
+                      <button
+                        key={numero}
+                        type="button"
+                        aria-label={`Giocatore ${numero}${attivo ? '' : ' in panchina'}`}
+                        aria-pressed={attivoSelezionato}
+                        aria-disabled={!attivo}
+                        onPointerDown={(event) => {
+                          trascinatoRef.current = false;
+                          setNumeroTrascinato(numero);
+                          setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
+                        }}
+                        onPointerMove={() => {
+                          trascinatoRef.current = true;
+                        }}
+                        onClick={() => {
+                          if (trascinatoRef.current) {
+                            trascinatoRef.current = false;
+                            return;
+                          }
+                          if (attivo) selezionaGiocatore(numero);
+                        }}
+                        className={`${BTN_GIOCATORE} touch-none ${
+                          attivoSelezionato
+                            ? GIOCATORE_ON
+                            : attivo
+                              ? libero
+                                ? GIOCATORE_LIBERO
+                                : GIOCATORE_OFF
+                              : GIOCATORE_PANCHINA
+                        }`}
+                      >
+                        <span className="text-base font-bold leading-none sm:text-lg">
+                          {numero}
+                          {libero && (
+                            <span
+                              className={`ml-1 align-super text-[8px] font-extrabold sm:text-[9px] ${
+                                attivoSelezionato ? 'text-white/75' : 'text-info'
+                              }`}
+                            >
+                              L
+                            </span>
+                          )}
+                        </span>
+                        {cognome && (
+                          <span className="w-full truncate px-1 text-[9px] leading-none opacity-80 sm:text-[10px]">
+                            {cognome}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 grid grid-cols-4 gap-1.5 sm:mt-3 sm:grid-cols-6 sm:gap-2 md:grid-cols-7 lg:grid-cols-8 2xl:grid-cols-10">
+            {numeri.map((numero) => {
             const attivo = numeroSel === numero;
             const cognome = osservaRosa ? cognomi.get(numero) : null;
             const libero = osservaRosa && liberi.has(numero);
@@ -121,11 +269,11 @@ export default function Inserimento({
                   attivo ? GIOCATORE_ON : libero ? GIOCATORE_LIBERO : GIOCATORE_OFF
                 }`}
               >
-                <span className="text-lg font-bold leading-none">
+                <span className="text-base font-bold leading-none sm:text-lg">
                   {numero}
                   {libero && (
                     <span
-                      className={`ml-1 align-super text-[9px] font-extrabold ${
+                      className={`ml-1 align-super text-[8px] font-extrabold sm:text-[9px] ${
                         attivo ? 'text-white/75' : 'text-info'
                       }`}
                     >
@@ -134,23 +282,29 @@ export default function Inserimento({
                   )}
                 </span>
                 {cognome && (
-                  <span className="w-full truncate px-1 text-[10px] leading-none opacity-80">
+                  <span className="w-full truncate px-1 text-[9px] leading-none opacity-80 sm:text-[10px]">
                     {cognome}
                   </span>
                 )}
               </button>
-            );
-          })}
-        </div>
-        {!osservaRosa && <p className="mt-3 text-xs text-ink-mute">Numeri da 1 a 20.</p>}
+              );
+            })}
+          </div>
+        )}
+        {osservaRosa && (
+          <p className="mt-2 text-[10px] text-ink-mute sm:mt-3 sm:text-xs">
+            Trascina le card tra campo e panchina. I giocatori in panchina sono disabilitati.
+          </p>
+        )}
+        {!osservaRosa && <p className="mt-2 text-xs text-ink-mute sm:mt-3">Numeri da 1 a 20.</p>}
 
         {/* Azione */}
-        <div className="mt-5 border-t border-line pt-5">
+        <div className="mt-2 border-t border-line pt-2 sm:mt-3 sm:pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-ink">Azione</h2>
             <p className="text-xs text-ink-mute">Quale gesto tecnico ha compiuto</p>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:max-w-[760px]">
+          <div className="mt-2 grid grid-cols-5 gap-1.5 sm:mt-3 sm:grid-cols-5 sm:gap-2">
             {AZIONI.map((azione) => {
               const attivo = azioneSel === azione.id;
               const disabilitata = azioneNonValida(numeroSel, azione.id);
@@ -174,14 +328,14 @@ export default function Inserimento({
         </div>
 
         {/* Esito */}
-        <div className="mt-5 border-t border-line pt-5">
+        <div className="mt-2 border-t border-line pt-2 sm:mt-3 sm:pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-ink">Esito</h2>
             <p className="text-xs text-ink-mute">
               Un tocco e il dato viene salvato · # +1 Noi, = +1 Loro
             </p>
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-2 lg:max-w-[760px]">
+          <div className="mt-2 grid grid-cols-4 gap-1.5 sm:mt-3 sm:gap-2">
             {ESITI.map((esito) => (
               <button
                 key={esito.id}
@@ -202,8 +356,35 @@ export default function Inserimento({
         </div>
       </Card>
 
-      {/* Colonna laterale: ultimo dato e ultimi inserimenti */}
-      <div className="flex flex-col gap-4">
+      {numeroTrascinato !== null && posizioneTrascinamento && (
+        <div
+          className={`pointer-events-none fixed z-50 flex h-14 w-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-xl border shadow-2xl ${
+            liberi.has(numeroTrascinato)
+              ? 'border-info/70 bg-info text-white'
+              : 'border-accent bg-accent text-on-accent'
+          }`}
+          style={{
+            left: posizioneTrascinamento.x,
+            top: posizioneTrascinamento.y,
+          }}
+          aria-hidden="true"
+        >
+          <span className="text-lg font-bold leading-none">
+            {numeroTrascinato}
+            {liberi.has(numeroTrascinato) && (
+              <span className="ml-1 align-super text-[9px] font-extrabold text-white/75">L</span>
+            )}
+          </span>
+          {cognomi.get(numeroTrascinato) && (
+            <span className="w-full truncate px-1 text-center text-[10px] leading-none opacity-90">
+              {cognomi.get(numeroTrascinato)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Dati inseriti, sempre dopo le pulsantiere e a tutta larghezza */}
+      <div className="grid w-full gap-4 lg:grid-cols-2">
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
           <p className="text-xs text-ink-soft">
             {ultimo ? (
@@ -244,7 +425,7 @@ export default function Inserimento({
                 evento.tipo === 'generico' ? (
                   <li
                     key={evento.id}
-                    className="flex items-center gap-3 rounded-xl border border-line bg-panel-2 px-3 py-2"
+                    className="flex items-center gap-2 rounded-xl border border-line bg-panel-2 px-3 py-2"
                   >
                     <span className="w-10 shrink-0 text-xs font-extrabold text-ko">ERR</span>
                     <span className="truncate text-sm text-ink-soft">
@@ -262,7 +443,7 @@ export default function Inserimento({
                 ) : (
                   <li
                     key={evento.id}
-                    className="flex items-center gap-3 rounded-xl border border-line bg-panel-2 px-3 py-2"
+                    className="flex items-center gap-2 rounded-xl border border-line bg-panel-2 px-3 py-2"
                   >
                     <span className="w-10 shrink-0 text-sm font-bold text-ink">
                       N. {evento.numero}

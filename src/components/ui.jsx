@@ -131,7 +131,7 @@ export function IconButton({ label, variant = 'outline', className = '', childre
 /* ------------------------------------------------------------------ campi */
 
 export const inputClass = (error = false) =>
-  `w-full rounded-xl border bg-panel-2 px-3.5 py-2.5 text-sm text-ink placeholder-ink-faint outline-none transition-colors focus:ring-2 ${
+  `w-full min-w-0 max-w-full rounded-xl border bg-panel-2 px-3.5 py-2.5 text-sm text-ink placeholder-ink-faint outline-none transition-colors focus:ring-2 ${
     error
       ? 'border-accent/60 focus:border-accent focus:ring-accent/25'
       : 'border-line-strong focus:border-accent focus:ring-accent/20'
@@ -139,7 +139,9 @@ export const inputClass = (error = false) =>
 
 export function Field({ label, htmlFor, error, hint, children }) {
   return (
-    <div>
+    // min-w-0: senza, un input "largo di suo" (data/ora su Safari) fa
+    // traboccare la colonna della griglia e si sovrappone ai campi affiancati.
+    <div className="min-w-0">
       <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-ink-soft">
         {label}
       </label>

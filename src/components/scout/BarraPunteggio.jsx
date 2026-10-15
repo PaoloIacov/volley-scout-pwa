@@ -8,9 +8,14 @@ function clampPunteggio(value) {
   return Math.min(Math.max(parsed, 0), 999);
 }
 
+const BTN_PUNTO =
+  'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-base font-bold leading-none text-ink-soft transition-colors duration-150 hover:bg-panel hover:text-ink sm:h-9 sm:w-9 sm:text-lg';
+
 /**
- * Punteggio del set corrente, sempre visibile (sticky sotto l'header):
- * set selezionabile a chip, punti modificabili con +/- o scrivendo il numero.
+ * Punteggio del set corrente, sempre visibile (sticky sotto l'header) ma in
+ * riga compatta: sul tablet deve occupare il minimo spazio possibile, perché
+ * il dato principale della schermata sono i rilevamenti statistici.
+ * Set a chip, punti con +/- o scrivendo il numero.
  */
 export default function BarraPunteggio({
   scout,
@@ -30,117 +35,114 @@ export default function BarraPunteggio({
   ];
 
   return (
-    <Card className="sticky top-16 z-30 p-3 sm:p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-ink-mute">
-            Set
-          </span>
-          {scout.sets.map((set) => {
-            const attivo = set.n === setAttivo.n;
-            const conElimina = scout.sets.length > 1;
-            return (
-              <div
-                key={set.n}
-                className={`flex h-10 items-center overflow-hidden rounded-xl border transition-colors duration-150 ${
-                  attivo
-                    ? 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25'
-                    : 'border-line-strong bg-panel-2 text-ink-soft hover:text-ink'
+    <Card className="sticky top-16 z-30 flex flex-wrap items-center gap-1 px-1.5 py-1 sm:gap-2 sm:px-2.5 sm:py-1.5">
+      <div className="flex w-full min-w-0 flex-nowrap items-center gap-1 sm:w-auto sm:flex-1 sm:flex-wrap sm:gap-1.5">
+        <span className="mr-0.5 hidden text-[10px] font-semibold uppercase tracking-wider text-ink-mute sm:inline">
+          Set
+        </span>
+        {scout.sets.map((set) => {
+          const attivo = set.n === setAttivo.n;
+          const conElimina = scout.sets.length > 1;
+          return (
+            <div
+              key={set.n}
+              className={`min-w-0 flex h-8 flex-1 items-center overflow-hidden rounded-xl border transition-colors duration-150 sm:flex-none sm:h-9 ${
+                attivo
+                  ? 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25'
+                  : 'border-line-strong bg-panel-2 text-ink-soft hover:text-ink'
+              }`}
+            >
+              <button
+                type="button"
+                aria-label={`Set ${set.n}`}
+                aria-pressed={attivo}
+                onClick={() => onSelezionaSet(set.n)}
+                className={`flex h-full min-w-0 flex-1 cursor-pointer items-center justify-center gap-0.5 text-[10px] sm:flex-none sm:gap-1 sm:text-xs ${
+                  conElimina ? 'pl-1.5 pr-0.5 sm:pl-2.5 sm:pr-1' : 'px-1.5 sm:px-2.5'
                 }`}
               >
+                <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">
+                  {set.n}
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {set.nostro}-{set.loro}
+                </span>
+              </button>
+              {conElimina && (
                 <button
                   type="button"
-                  aria-label={`Set ${set.n}`}
-                  aria-pressed={attivo}
-                  onClick={() => onSelezionaSet(set.n)}
-                  className={`flex h-full cursor-pointer items-center gap-1.5 text-sm ${
-                    conElimina ? 'pl-3 pr-1.5' : 'px-3'
+                  aria-label={`Elimina set ${set.n}`}
+                  title={`Elimina il set ${set.n}`}
+                  onClick={() => onEliminaSet(set.n)}
+                  className={`flex h-full w-5 cursor-pointer items-center justify-center transition-opacity sm:w-6 ${
+                    attivo ? 'hover:opacity-80' : 'opacity-55 hover:opacity-100'
                   }`}
                 >
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                    {set.n}
-                  </span>
-                  <span className="font-semibold tabular-nums">
-                    {set.nostro}-{set.loro}
-                  </span>
+                  <X size={13} />
                 </button>
-                {conElimina && (
-                  <button
-                    type="button"
-                    aria-label={`Elimina set ${set.n}`}
-                    title={`Elimina il set ${set.n}`}
-                    onClick={() => onEliminaSet(set.n)}
-                    className={`flex h-full w-8 cursor-pointer items-center justify-center transition-opacity ${
-                      attivo ? 'hover:opacity-80' : 'opacity-55 hover:opacity-100'
-                    }`}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <IconButton
-            label="Aggiungi set"
-            onClick={onAggiungiSet}
-            disabled={!piuSet}
-            className="h-10 w-10"
-          >
-            <Plus size={16} />
-          </IconButton>
-        </div>
+              )}
+            </div>
+          );
+        })}
+        <IconButton
+          label="Aggiungi set"
+          onClick={onAggiungiSet}
+          disabled={!piuSet}
+          className="h-8 w-8 sm:h-9 sm:w-9"
+        >
+          <Plus size={15} />
+        </IconButton>
+      </div>
 
-        <div className="lg:w-[460px] xl:w-[520px]">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            {squadre.map(({ campo, label, aria }) => (
-              <div key={campo} className="rounded-2xl border border-line bg-panel-2 p-2.5">
-                <p className="mb-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
-                  {label}
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    aria-label={`Togli punto a ${label}`}
-                    onClick={() => onDeltaPunteggio(setAttivo.n, campo, -1)}
-                    className="flex h-12 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-panel text-xl font-bold text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min={0}
-                    max={999}
-                    inputMode="numeric"
-                    aria-label={`Punteggio ${aria}`}
-                    className="h-12 w-full min-w-0 rounded-xl border border-line-strong bg-panel text-center text-2xl font-bold text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    value={setAttivo[campo]}
-                    onChange={(e) =>
-                      onCambiaPunteggio(setAttivo.n, campo, clampPunteggio(e.target.value))
-                    }
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Aggiungi punto a ${label}`}
-                    onClick={() => onDeltaPunteggio(setAttivo.n, campo, 1)}
-                    className="flex h-12 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-panel text-xl font-bold text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            aria-label="Errore generico"
-            title="Dà un punto all'avversario e registra un errore generico, senza toccare le statistiche dei giocatori"
-            onClick={onErroreGenerico}
-            className="mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-ko/45 bg-ko/10 text-sm font-semibold text-ko transition-colors duration-150 hover:bg-ko/15"
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 sm:gap-1.5">
+        {squadre.map(({ campo, label, aria }) => (
+          <div
+            key={campo}
+            className="flex items-center gap-0 rounded-xl border border-line bg-panel-2 p-0.5 sm:gap-0.5 sm:p-1"
           >
-            Errore generico
-            <span className="text-xs font-medium opacity-70">+1 Loro</span>
-          </button>
-        </div>
+            <span className="px-1 text-[10px] font-semibold uppercase tracking-wider text-ink-mute">
+              {label}
+            </span>
+            <button
+              type="button"
+              aria-label={`Togli punto a ${label}`}
+              onClick={() => onDeltaPunteggio(setAttivo.n, campo, -1)}
+              className={BTN_PUNTO}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={0}
+              max={999}
+              inputMode="numeric"
+              aria-label={`Punteggio ${aria}`}
+              className="h-7 w-8 min-w-0 rounded-lg border-0 bg-transparent text-center text-sm font-bold text-ink outline-none transition-colors [appearance:textfield] focus:bg-panel focus:ring-2 focus:ring-accent/30 sm:h-9 sm:w-11 sm:text-base [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              value={setAttivo[campo]}
+              onChange={(e) =>
+                onCambiaPunteggio(setAttivo.n, campo, clampPunteggio(e.target.value))
+              }
+            />
+            <button
+              type="button"
+              aria-label={`Aggiungi punto a ${label}`}
+              onClick={() => onDeltaPunteggio(setAttivo.n, campo, 1)}
+              className={BTN_PUNTO}
+            >
+              +
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          aria-label="Errore generico"
+          title="Dà un punto all'avversario e registra un errore generico, senza toccare le statistiche dei giocatori"
+          onClick={onErroreGenerico}
+          className="flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl border border-ko/45 bg-ko/10 px-1.5 text-[10px] font-semibold text-ko transition-colors duration-150 hover:bg-ko/15 sm:h-9 sm:gap-1.5 sm:px-2.5 sm:text-xs"
+        >
+          Errore generico
+          <span className="text-[10px] font-medium opacity-70">+1 Loro</span>
+        </button>
       </div>
     </Card>
   );

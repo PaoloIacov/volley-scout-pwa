@@ -63,6 +63,12 @@ function normalizeConvocati(value) {
   return numeri.length > 0 ? numeri : undefined;
 }
 
+function normalizeInCampo(value) {
+  if (!Array.isArray(value)) return undefined;
+  const numeri = [...new Set(value.map((n) => num(n)).filter((n) => n > 0))];
+  return numeri.length > 0 ? numeri : undefined;
+}
+
 /** Normalizza il record scout prima del salvataggio. */
 function normalizeScout(scout) {
   const sets = isList(scout?.sets).map(normalizeSet);
@@ -78,6 +84,8 @@ function normalizeScout(scout) {
     squadraOsservata: scout?.squadraOsservata === 'avversaria' ? 'avversaria' : 'propria',
     /** Numeri convocati alla gara (undefined = tutta la rosa). */
     convocati: normalizeConvocati(scout?.convocati),
+    /** Numeri attualmente in campo (undefined = formazione predefinita). */
+    inCampo: normalizeInCampo(scout?.inCampo),
     setCorrente: Math.max(1, Number(scout?.setCorrente) || 1),
     sets: sets.length > 0 ? sets : [normalizeSet(null, 0)],
     azioni: isList(scout?.azioni).map(normalizeAzione).filter(Boolean),
