@@ -34,7 +34,10 @@ e design system a token condivisi.
   giocatore → azione (ricezione, attacco, difesa, muro, battuta) → esito
   (# perfetta, + positiva, - negativa, = errore), annulla ultimo, set multipli
   e tab riepilogo per giocatore; i dati vengono salvati a ogni tocco, si può
-  uscire e rientrare senza perdere nulla
+  uscire e rientrare senza perdere nulla. Dal tab Riepilogo si esporta il
+  riepilogo sintetico (info partita, punteggi dei set e tabella per giocatore)
+  in Excel (.xlsx) o PDF: le librerie di export vengono caricate solo al
+  momento del download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
   (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)

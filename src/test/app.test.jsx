@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App.jsx';
+import { costruisciExport, nomeFileScout, testoPdf } from '../lib/export-scout.js';
 import { SettingsProvider } from '../components/SettingsContext.jsx';
 import { ToastProvider } from '../components/Toast.jsx';
 import { migraDati } from '../services/squadre.js';
@@ -378,6 +379,29 @@ function seedRosa() {
   );
 }
 
+/** Intercetta i download (Blob + click sul link) cacciando i file generati. */
+function stubDownload() {
+  const blobs = [];
+  const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+  URL.createObjectURL = (blob) => {
+    blobs.push(blob);
+    return `blob:mock-${blobs.length}`;
+  };
+  URL.revokeObjectURL = () => {};
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  return {
+    blobs,
+    click,
+    restore() {
+      click.mockRestore();
+      if (original.create) URL.createObjectURL = original.create;
+      else delete URL.createObjectURL;
+      if (original.revoke) URL.revokeObjectURL = original.revoke;
+      else delete URL.revokeObjectURL;
+    },
+  };
+}
+
 describe('scout', () => {
   it('crea un nuovo scout dalla home e apre la schermata di scouting', async () => {
     renderAt('/home');
@@ -513,6 +537,43 @@ describe('scout', () => {
     expect(screen.getByText('Legenda:')).toBeInTheDocument();
   });
 
+  it("non offre l'export quando non ci sono dati", () => {
+    seedScout();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+
+    expect(screen.getByText('Nessun dato rilevato')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Excel' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'PDF' })).not.toBeInTheDocument();
+  });
+
+  it('esporta il riepilogo in Excel e PDF dalla tab dedicata', async () => {
+    seedScout({
+      sets: [{ n: 1, nostro: 25, loro: 23 }],
+      azioni: [{ id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '=' }],
+    });
+    seedRosa();
+    const download = stubDownload();
+
+    renderAt('/scout/sc1');
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excel' }));
+    expect(await screen.findByText('Riepilogo esportato in Excel.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'PDF' }));
+    expect(await screen.findByText('Riepilogo esportato in PDF.')).toBeInTheDocument();
+
+    // I due file generati: .xlsx è uno zip, il PDF inizia con %PDF.
+    expect(download.blobs).toHaveLength(2);
+    const bytes = new Uint8Array(await download.blobs[0].arrayBuffer());
+    expect(String.fromCharCode(bytes[0], bytes[1])).toBe('PK');
+    expect(await download.blobs[1].text()).toMatch(/^%PDF/);
+    expect(download.click).toHaveBeenCalledTimes(2);
+    download.restore();
+  });
+
   it('esce e rientra dalla schermata senza perdere i dati', () => {
     seedScout();
     seedRosa();
@@ -542,5 +603,65 @@ describe('scout', () => {
 
     expect(await screen.findByText('Nessuno scout ancora')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('scout'))).toEqual([]);
+  });
+});
+
+describe('export scout', () => {
+  const SCOUT = {
+    avversario: 'Volley Beta',
+    data: '2026-12-01',
+    orarioInizio: '18:00',
+    luogo: 'Palestra X',
+    squadraOsservata: 'propria',
+    sets: [
+      { n: 1, nostro: 25, loro: 23 },
+      { n: 2, nostro: 25, loro: 19 },
+    ],
+    azioni: [
+      { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '=' },
+      { id: 'a2', ts: 2, set: 1, numero: 10, azione: 'attacco', esito: '#' },
+      { id: 'a3', ts: 3, set: 2, numero: 7, azione: 'muro', esito: '+' },
+    ],
+  };
+  const ROSA = [{ nome: 'Mario', cognome: 'Rossi', numeroMaglia: 10, ruolo: 'palleggiatore' }];
+
+  it('costruisce i blocchi info, punteggio e riepilogo', () => {
+    const dati = costruisciExport(SCOUT, ROSA, 'Prima Divisione');
+
+    expect(dati.titolo).toBe('Scout vs Volley Beta');
+    expect(dati.info).toContainEqual(['Squadra', 'Prima Divisione']);
+    expect(dati.info).toContainEqual(['Data', '01/12/2026']);
+    expect(dati.info).toContainEqual(['Luogo', 'Palestra X']);
+    expect(dati.info).toContainEqual(['Squadra osservata', 'Prima Divisione']);
+    expect(dati.info).toContainEqual(['Azioni rilevate', 3]);
+
+    expect(dati.punteggio.righe).toEqual([
+      ['Set 1', 25, 23],
+      ['Set 2', 25, 19],
+    ]);
+    expect(dati.punteggio.totale).toEqual(['Set vinti', 2, 0]);
+
+    expect(dati.riepilogo.header).toEqual([
+      'Giocatore',
+      'Ricezione',
+      'Attacco',
+      'Difesa',
+      'Muro',
+      'Battuta',
+      'Tot',
+    ]);
+    expect(dati.riepilogo.righe).toEqual([
+      ['N. 7', '', '', '', '1 (1+)', '', 1],
+      ['Mario Rossi (N. 10)', '', '2 (1# 1=)', '', '', '', 2],
+    ]);
+    expect(dati.riepilogo.totale).toEqual(['Totale', '', '2 (1# 1=)', '', '1 (1+)', '', 3]);
+  });
+
+  it('prepara nomi file sicuri e testo PDF compatibile', () => {
+    expect(nomeFileScout({ avversario: 'Volley Beta / Brescia', data: '2026-12-01' }, 'xlsx')).toBe(
+      'scout_Volley-Beta-Brescia_2026-12-01.xlsx',
+    );
+    expect(nomeFileScout({ avversario: '', data: '' }, 'pdf')).toBe('scout.pdf');
+    expect(testoPdf('’ – … àèé ü')).toBe("' - ... àèé ü");
   });
 });

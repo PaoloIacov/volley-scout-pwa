@@ -127,7 +127,7 @@ export default function ScoutSessione() {
           onAggiungiNumero={aggiungiNumero}
         />
       ) : (
-        <Riepilogo scout={scout} giocatori={giocatori} />
+        <Riepilogo scout={scout} giocatori={giocatori} squadraNome={squadra?.nome ?? ''} />
       )}
     </div>
   );
