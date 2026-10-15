@@ -39,10 +39,12 @@ e design system a token condivisi.
   tasto "Errore generico", che dà un punto all'avversario e viene contato a
   parte senza toccare le statistiche dei giocatori. I set si aggiungono ma
   anche si eliminano dall'elenco in alto (con conferma se contengono dati);
-  c'è poi il tab riepilogo per giocatore. I liberi hanno card riconoscibili e
+  c'è poi il tab riepilogo per giocatore (ogni colonna, Tot compresa, è
+  suddivisa nelle 4 sotto-colonne di esito, colorate). I liberi hanno card riconoscibili e
   non registrano battuta né muro; i dati vengono salvati a ogni tocco, si può uscire e rientrare senza
   perdere nulla. Dal tab Riepilogo si esporta il riepilogo sintetico (info
-  partita, punteggi dei set, tabella per giocatore ed errori generici) in
+  partita, punteggi dei set, tabella per giocatore con sotto-colonne di esito
+  colorate ed errori generici) in
   Excel (.xlsx) o PDF: le librerie di export vengono caricate solo al momento
   del download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo

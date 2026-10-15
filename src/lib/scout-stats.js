@@ -87,7 +87,7 @@ function cellaVuota() {
  *
  * @param {object} scout record scout
  * @param {Array} giocatori rosa della squadra che possiede lo scout
- * @returns {{ righe: Array, totali: object }}
+ * @returns {{ righe: Array, totali: object, totaliPerEsito: object }}
  */
 export function costruisciRiepilogo(scout, giocatori) {
   const osservaRosa = scout.squadraOsservata === 'propria';
@@ -128,11 +128,19 @@ export function costruisciRiepilogo(scout, giocatori) {
           if (isEsito(azione.esito)) cella[azione.esito] += 1;
         });
       const tot = AZIONI.reduce((somma, azione) => somma + celle[azione.id].tot, 0);
+      // Totali della riga per esito: servono alla colonna Tot suddivisa.
+      const perEsito = Object.fromEntries(
+        ESITI.map(({ id }) => [
+          id,
+          AZIONI.reduce((somma, azione) => somma + celle[azione.id][id], 0),
+        ]),
+      );
       return {
         numero,
         nome: (osservaRosa && nomi.get(numero)) || '',
         celle,
         tot,
+        perEsito,
       };
     });
 
@@ -146,5 +154,9 @@ export function costruisciRiepilogo(scout, giocatori) {
     });
   });
 
-  return { righe, totali };
+  const totaliPerEsito = Object.fromEntries(
+    ESITI.map(({ id }) => [id, AZIONI.reduce((somma, azione) => somma + totali[azione.id][id], 0)]),
+  );
+
+  return { righe, totali, totaliPerEsito };
 }

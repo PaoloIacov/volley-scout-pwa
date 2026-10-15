@@ -674,9 +674,12 @@ describe('scout', () => {
       .getAllByRole('row')
       .find((row) => within(row).queryByText('Mario Rossi'));
     expect(riga).toBeDefined();
-    expect(within(riga).getByText('2')).toBeInTheDocument(); // attacchi
-    expect(within(riga).getByText('1')).toBeInTheDocument(); // muri
-    expect(within(riga).getByText('3')).toBeInTheDocument(); // totale riga
+    // Ogni colonna è divisa in 4 sotto-colonne (# + - =), Tot compresa.
+    const celle = within(riga).getAllByRole('cell');
+    expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['1', '·', '·', '1']); // attacco
+    expect(celle.slice(13, 17).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '·']); // muro
+    expect(celle.slice(21, 25).map((cell) => cell.textContent)).toEqual(['1', '1', '·', '1']); // Tot
+    expect(within(table).getByText('Tot')).toBeInTheDocument();
     expect(screen.getByText('Legenda:')).toBeInTheDocument();
   });
 
@@ -764,7 +767,10 @@ describe('scout', () => {
     expect(screen.getByText('Errori generici:')).toBeInTheDocument();
     expect(screen.getByText('· set 1: 1')).toBeInTheDocument();
     const riga = screen.getByText('Mario Rossi').closest('tr');
-    expect(within(riga).getByText('2')).toBeInTheDocument();
+    // Colonne suddivise per esito: 1 attacco in errore, Totale 1 positiva + 1 errore.
+    const celle = within(riga).getAllByRole('cell');
+    expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['·', '·', '·', '1']);
+    expect(celle.slice(21, 25).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '1']);
   });
 
   it('sceglie i convocati al momento della creazione con il limite 12 più 2 liberi', () => {
@@ -901,7 +907,7 @@ describe('export scout', () => {
     ]);
     expect(dati.punteggio.totale).toEqual(['Set vinti', 2, 0]);
 
-    expect(dati.riepilogo.header).toEqual([
+    expect(dati.riepilogo.gruppi).toEqual([
       'Giocatore',
       'Ricezione',
       'Attacco',
@@ -910,11 +916,91 @@ describe('export scout', () => {
       'Battuta',
       'Tot',
     ]);
+    expect(dati.riepilogo.esiti).toEqual(['#', '+', '-', '=']);
+    // Una colonna per esito per ogni azione (4 × 5), più il Tot suddiviso.
     expect(dati.riepilogo.righe).toEqual([
-      ['N. 7', '', '', '', '1 (1+)', '', 1],
-      ['Mario Rossi (N. 10)', '', '2 (1# 1=)', '', '', '', 2],
+      [
+        'N. 7',
+        0,
+        0,
+        0,
+        0, // ricezione
+        0,
+        0,
+        0,
+        0, // attacco
+        0,
+        0,
+        0,
+        0, // difesa
+        0,
+        1,
+        0,
+        0, // muro
+        0,
+        0,
+        0,
+        0, // battuta
+        0,
+        1,
+        0,
+        0, // Tot
+      ],
+      [
+        'Mario Rossi (N. 10)',
+        0,
+        0,
+        0,
+        0, // ricezione
+        1,
+        0,
+        0,
+        1, // attacco
+        0,
+        0,
+        0,
+        0, // difesa
+        0,
+        0,
+        0,
+        0, // muro
+        0,
+        0,
+        0,
+        0, // battuta
+        1,
+        0,
+        0,
+        1, // Tot
+      ],
     ]);
-    expect(dati.riepilogo.totale).toEqual(['Totale', '', '2 (1# 1=)', '', '1 (1+)', '', 3]);
+    expect(dati.riepilogo.totale).toEqual([
+      'Totale',
+      0,
+      0,
+      0,
+      0, // ricezione
+      1,
+      0,
+      0,
+      1, // attacco
+      0,
+      0,
+      0,
+      0, // difesa
+      0,
+      1,
+      0,
+      0, // muro
+      0,
+      0,
+      0,
+      0, // battuta
+      1,
+      1,
+      0,
+      1, // Tot
+    ]);
   });
 
   it('prepara nomi file sicuri e testo PDF compatibile', () => {

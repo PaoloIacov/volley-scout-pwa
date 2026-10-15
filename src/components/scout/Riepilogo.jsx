@@ -12,40 +12,39 @@ import {
 } from '../../lib/scout-stats.js';
 import { esportaScoutExcel, esportaScoutPdf } from '../../lib/export-scout.js';
 
-/** Cella della tabella: totale + conteggi per esito (solo i diversi da zero). */
-function Cella({ cella }) {
-  if (!cella || !cella.tot) {
-    return <td className="px-3 py-2.5 text-center text-ink-faint">·</td>;
+/** Gruppi di colonna: le 5 azioni più il totale, ognuno con le 4 sotto-colonne esito. */
+const GRUPPI = [...AZIONI, { id: 'tot', label: 'Tot' }];
+
+/**
+ * Numero in una sotto-colonna: badge colorato con il conteggio per esito
+ * (punto quando non c'è nulla). `primo` disegna il bordo verticale
+ * che separa i gruppi di colonna.
+ */
+function Numero({ valore, esito, primo }) {
+  const bordo = primo ? 'border-l border-line ' : '';
+  if (!valore) {
+    return <td className={`${bordo}px-1.5 py-2.5 text-center text-ink-faint`}>·</td>;
   }
   return (
-    <td className="px-3 py-2.5 text-center align-top">
-      <span className="text-sm font-semibold text-ink tabular-nums">{cella.tot}</span>
-      <span className="mt-1 flex flex-wrap justify-center gap-1">
-        {ESITI.map(({ id }) =>
-          cella[id] > 0 ? (
-            <span
-              key={id}
-              className={`inline-flex h-4 items-center justify-center rounded px-1 text-[10px] font-bold tabular-nums ${ESITO_CLASSI[id].tondo}`}
-            >
-              {cella[id]}
-              {id}
-            </span>
-          ) : null,
-        )}
+    <td className={`${bordo}px-1.5 py-2.5 text-center`}>
+      <span
+        className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums ring-1 ${ESITO_CLASSI[esito].tondo}`}
+      >
+        {valore}
       </span>
     </td>
   );
 }
 
 /**
- * Riepilogo parziale: tabella giocatore × azione con esiti,
- * più la riga con i totali della squadra. Da qui si esporta
- * il riepilogo sintetico in Excel o PDF.
+ * Riepilogo parziale: tabella giocatore × azione con ogni colonna
+ * (compreso il Tot) suddivisa nelle 4 sotto-colonne di esito, più la riga
+ * con i totali della squadra. Da qui si esporta il riepilogo in Excel o PDF.
  */
 export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
   const toast = useToast();
   const [esportando, setEsportando] = useState('');
-  const { righe, totali } = costruisciRiepilogo(scout, giocatori);
+  const { righe, totali, totaliPerEsito } = costruisciRiepilogo(scout, giocatori);
   const totaleGenerale = AZIONI.reduce((somma, azione) => somma + totali[azione.id].tot, 0);
   const generici = genericiPerSet(scout);
   const totGenerici = contaGenerici(scout);
@@ -110,20 +109,39 @@ export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left">
+          <table className="w-full min-w-[1040px] text-left">
             <thead>
-              <tr className="border-b border-line bg-panel-2 text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
-                <th scope="col" className="px-4 py-3">
+              <tr className="bg-panel-2 text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
+                <th scope="col" rowSpan={2} className="px-4 py-3 text-left align-bottom">
                   Giocatore
                 </th>
-                {AZIONI.map((azione) => (
-                  <th key={azione.id} scope="col" className="px-3 py-3 text-center">
-                    {azione.label}
+                {GRUPPI.map((gruppo) => (
+                  <th
+                    key={gruppo.id}
+                    scope="colgroup"
+                    colSpan={ESITI.length}
+                    className="border-l border-line px-2 pt-3 pb-1.5 text-center"
+                  >
+                    {gruppo.label}
                   </th>
                 ))}
-                <th scope="col" className="px-4 py-3 text-center">
-                  Tot
-                </th>
+              </tr>
+              <tr className="border-b border-line bg-panel-2 text-ink-mute">
+                {GRUPPI.map((gruppo) =>
+                  ESITI.map((esito, i) => (
+                    <th
+                      key={`${gruppo.id}-${esito.id}`}
+                      scope="col"
+                      className={`pb-2.5 text-center ${i === 0 ? 'border-l border-line' : ''}`}
+                    >
+                      <span
+                        className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[11px] font-bold ${ESITO_CLASSI[esito.id].tondo}`}
+                      >
+                        {esito.id}
+                      </span>
+                    </th>
+                  )),
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -139,24 +157,53 @@ export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
                       )}
                     </div>
                   </td>
-                  {AZIONI.map((azione) => (
-                    <Cella key={azione.id} cella={riga.celle[azione.id]} />
+                  {AZIONI.map((azione) =>
+                    ESITI.map((esito, i) => (
+                      <Numero
+                        key={`${azione.id}-${esito.id}`}
+                        valore={riga.celle[azione.id][esito.id]}
+                        esito={esito.id}
+                        primo={i === 0}
+                      />
+                    )),
+                  )}
+                  {ESITI.map((esito, i) => (
+                    <Numero
+                      key={`tot-${esito.id}`}
+                      valore={riga.perEsito[esito.id]}
+                      esito={esito.id}
+                      primo={i === 0}
+                    />
                   ))}
-                  <td className="px-4 py-2.5 text-center text-sm font-bold text-ink tabular-nums">
-                    {riga.tot}
-                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-line bg-panel-2 text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
-                <td className="px-4 py-3">Totale</td>
-                {AZIONI.map((azione) => (
-                  <Cella key={azione.id} cella={totali[azione.id]} />
-                ))}
-                <td className="px-4 py-3 text-center text-sm font-bold text-ink tabular-nums">
-                  {totaleGenerale}
+              <tr className="border-t border-line bg-panel-2">
+                <td className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider">
+                  Totale
+                  <span className="block text-[10px] font-normal normal-case tracking-normal text-ink-mute">
+                    {totaleGenerale} azioni
+                  </span>
                 </td>
+                {AZIONI.map((azione) =>
+                  ESITI.map((esito, i) => (
+                    <Numero
+                      key={`${azione.id}-${esito.id}`}
+                      valore={totali[azione.id][esito.id]}
+                      esito={esito.id}
+                      primo={i === 0}
+                    />
+                  )),
+                )}
+                {ESITI.map((esito, i) => (
+                  <Numero
+                    key={`tot-${esito.id}`}
+                    valore={totaliPerEsito[esito.id]}
+                    esito={esito.id}
+                    primo={i === 0}
+                  />
+                ))}
               </tr>
             </tfoot>
           </table>
@@ -180,7 +227,7 @@ export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
           {ESITI.map((esito) => (
             <span key={esito.id} className="inline-flex items-center gap-1.5">
               <span
-                className={`inline-flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-bold ${ESITO_CLASSI[esito.id].tondo}`}
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-bold ring-1 ${ESITO_CLASSI[esito.id].tondo}`}
               >
                 {esito.id}
               </span>
