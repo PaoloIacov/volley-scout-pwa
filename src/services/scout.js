@@ -83,14 +83,6 @@ function normalizeScout(scout) {
     azioni: isList(scout?.azioni).map(normalizeAzione).filter(Boolean),
     /** Errori generici: punto avversario senza giocatore. */
     generici: isList(scout?.generici).map(normalizeGenerico).filter(Boolean),
-    /** Numeri aggiunti manualmente oltre alla rosa. */
-    numeriExtra: [
-      ...new Set(
-        isList(scout?.numeriExtra)
-          .map((n) => num(n))
-          .filter((n) => n > 0),
-      ),
-    ],
     aggiornato: Number(scout?.aggiornato) || Date.now(),
   };
 }

@@ -249,7 +249,6 @@ describe('squadre', () => {
           setCorrente: 1,
           sets: [{ n: 1, nostro: 0, loro: 0 }],
           azioni: [],
-          numeriExtra: [],
         },
       ]),
     );
@@ -356,7 +355,6 @@ function seedScout(overrides = {}) {
         setCorrente: 1,
         sets: [{ n: 1, nostro: 0, loro: 0 }],
         azioni: [],
-        numeriExtra: [],
         aggiornato: 1,
         ...overrides,
       },
@@ -515,6 +513,44 @@ describe('scout', () => {
     expect(JSON.parse(localStorage.getItem('scout'))[0].azioni).toHaveLength(0);
   });
 
+  it('aggiorna il punteggio con # e = e lo riporta indietro ad annullare o rimuovere', () => {
+    seedScout();
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    // Perfetto: +1 punto per noi.
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Attacco' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Esito perfetta' }));
+    expect(JSON.parse(localStorage.getItem('scout'))[0].sets[0]).toMatchObject({
+      nostro: 1,
+      loro: 0,
+    });
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(1);
+
+    // Errore: +1 punto per loro (l'azione si è resettata, va riscelta).
+    fireEvent.click(screen.getByRole('button', { name: 'Attacco' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Esito errore' }));
+    expect(JSON.parse(localStorage.getItem('scout'))[0].sets[0]).toMatchObject({
+      nostro: 1,
+      loro: 1,
+    });
+    expect(screen.getByLabelText('Punteggio avversario')).toHaveValue(1);
+
+    // Annulla ultimo toglie l'ultimo errore insieme al suo punto.
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla ultimo' }));
+    let scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(1);
+    expect(scout.sets[0]).toMatchObject({ nostro: 1, loro: 0 });
+
+    // Rimuovendo la # dalla cronologia torna via anche il nostro punto.
+    fireEvent.click(screen.getByRole('button', { name: 'Rimuovi azione N. 10' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(0);
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(0);
+  });
+
   it('modifica il punteggio con i tasti +/- e scrivendo il numero', () => {
     seedScout();
     renderAt('/scout/sc1');
@@ -546,6 +582,78 @@ describe('scout', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Set 1' }));
     expect(JSON.parse(localStorage.getItem('scout'))[0].setCorrente).toBe(1);
+  });
+
+  it("elimina un set vuoto dall'elenco e rinumera i restanti", () => {
+    seedScout({
+      sets: [
+        { n: 1, nostro: 0, loro: 0 },
+        { n: 2, nostro: 0, loro: 0 },
+        { n: 3, nostro: 0, loro: 0 },
+      ],
+      setCorrente: 3,
+    });
+    renderAt('/scout/sc1');
+
+    // Un set senza dati si elimina subito, senza modale.
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina set 3' }));
+    expect(screen.queryByRole('dialog', { name: 'Elimina set' })).not.toBeInTheDocument();
+    let scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets).toEqual([
+      { n: 1, nostro: 0, loro: 0 },
+      { n: 2, nostro: 0, loro: 0 },
+    ]);
+    // Il set corrente era l'ultimo: si torna indietro di uno.
+    expect(scout.setCorrente).toBe(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina set 2' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets).toEqual([{ n: 1, nostro: 0, loro: 0 }]);
+    expect(scout.setCorrente).toBe(1);
+    // Con un solo set il taschino di eliminazione sparisce.
+    expect(screen.queryByRole('button', { name: 'Elimina set 1' })).not.toBeInTheDocument();
+  });
+
+  it('chiede conferma quando il set da eliminare contiene dati', () => {
+    seedScout({
+      sets: [
+        { n: 1, nostro: 0, loro: 0 },
+        { n: 2, nostro: 12, loro: 9 },
+      ],
+      azioni: [
+        { id: 'a1', ts: 1, set: 2, numero: 10, azione: 'attacco', esito: '=' },
+        { id: 'a2', ts: 2, set: 1, numero: 10, azione: 'muro', esito: '+' },
+      ],
+      generici: [{ id: 'g1', ts: 3, set: 2 }],
+    });
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina set 2' }));
+    const dialog = screen.getByRole('dialog', { name: 'Elimina set' });
+    expect(
+      within(dialog).getByText(/Nel set 2 ci sono 1 azione, 1 errore generico e il punteggio 12-9/),
+    ).toBeInTheDocument();
+
+    // Annulla: non sparisce niente.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Annulla' }));
+    expect(screen.queryByRole('dialog', { name: 'Elimina set' })).not.toBeInTheDocument();
+    let scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets).toHaveLength(2);
+    expect(scout.azioni).toHaveLength(2);
+
+    // Conferma: spariscono il set e i suoi dati, gli altri vengono rinumerati.
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina set 2' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Elimina set' })).getByRole('button', {
+        name: 'Elimina',
+      }),
+    );
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets).toEqual([{ n: 1, nostro: 0, loro: 0 }]);
+    expect(scout.setCorrente).toBe(1);
+    expect(scout.azioni).toHaveLength(1);
+    expect(scout.azioni[0]).toMatchObject({ id: 'a2', set: 1, esito: '+' });
+    expect(scout.generici).toHaveLength(0);
   });
 
   it('mostra il riepilogo per giocatore nella tab dedicata', () => {

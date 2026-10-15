@@ -38,6 +38,16 @@ export function isAzione(value) {
   return AZIONI.some((azione) => azione.id === value);
 }
 
+/**
+ * Punti generati automaticamente da un esito: il perfetto (#) segna per noi,
+ * l'errore (=) segna per l'avversario; + e - non muovono il punteggio.
+ */
+export function puntiPerEsito(esito) {
+  if (esito === '#') return { nostro: 1, loro: 0 };
+  if (esito === '=') return { nostro: 0, loro: 1 };
+  return { nostro: 0, loro: 0 };
+}
+
 /** Limite dei convocati: 12 di movimento più fino a 2 liberi. */
 export const MAX_MOVIMENTO = 12;
 export const MAX_LIBERI = 2;

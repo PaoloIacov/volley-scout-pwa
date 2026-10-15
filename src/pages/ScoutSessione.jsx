@@ -5,7 +5,8 @@ import { getScout, salvaScout, SET_MASSIMO } from '../services/scout.js';
 import { getGiocatori } from '../services/giocatori.js';
 import { getSquadra } from '../services/squadre.js';
 import { shortDate } from '../lib/dates.js';
-import { Badge, IconButton, SegmentedControl } from '../components/ui.jsx';
+import { puntiPerEsito } from '../lib/scout-stats.js';
+import { Badge, ConfirmDialog, IconButton, SegmentedControl } from '../components/ui.jsx';
 import BarraPunteggio from '../components/scout/BarraPunteggio.jsx';
 import Inserimento from '../components/scout/Inserimento.jsx';
 import Riepilogo from '../components/scout/Riepilogo.jsx';
@@ -14,6 +15,22 @@ function clampPunteggio(value) {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed)) return 0;
   return Math.min(Math.max(parsed, 0), 999);
+}
+
+/**
+ * Somma (o sottrae) punti a un set, clamped 0-999: usato dagli esiti
+ * automatici, dagli errori generici e dai relativi annullamenti.
+ */
+function applicaPunti(sets, setN, deltaNostro, deltaLoro) {
+  return sets.map((set) =>
+    set.n === setN
+      ? {
+          ...set,
+          nostro: clampPunteggio(set.nostro + deltaNostro),
+          loro: clampPunteggio(set.loro + deltaLoro),
+        }
+      : set,
+  );
 }
 
 const TABS = [
@@ -33,6 +50,8 @@ export default function ScoutSessione() {
   const [tab, setTab] = useState('inserimento');
   const [numeroSel, setNumeroSel] = useState(null);
   const [azioneSel, setAzioneSel] = useState(null);
+  /** Set in attesa di conferma per l'eliminazione (null = nessuna). */
+  const [setDaEliminare, setSetDaEliminare] = useState(null);
 
   /** Applica la modifica, la salva subito e aggiorna lo stato. */
   const aggiorna = (next) => setScout(salvaScout(next));
@@ -58,11 +77,70 @@ export default function ScoutSessione() {
     aggiorna({ ...scout, sets: [...scout.sets, { n, nostro: 0, loro: 0 }], setCorrente: n });
   };
 
-  const registra = (numero, azione, esito) =>
+  /** Descrive cosa contiene un set, per l'avviso prima dell'eliminazione. */
+  const descriviSet = (n) => {
+    const set = scout.sets.find((voce) => voce.n === n);
+    const azioni = scout.azioni.filter((voce) => voce.set === n).length;
+    const generici = (scout.generici ?? []).filter((voce) => voce.set === n).length;
+    const parti = [];
+    if (azioni > 0) parti.push(`${azioni} ${azioni === 1 ? 'azione' : 'azioni'}`);
+    if (generici > 0) {
+      parti.push(`${generici} ${generici === 1 ? 'errore generico' : 'errori generici'}`);
+    }
+    if (set && (set.nostro > 0 || set.loro > 0)) {
+      parti.push(`il punteggio ${set.nostro}-${set.loro}`);
+    }
+    const elenco =
+      parti.length <= 1
+        ? (parti[0] ?? '')
+        : `${parti.slice(0, -1).join(', ')} e ${parti[parti.length - 1]}`;
+    return { elenco, vuoto: parti.length === 0 };
+  };
+
+  /** Elimina il set con i dati al suo interno e rinumera i set restanti. */
+  const eliminaSet = (n) => {
+    if (scout.sets.length <= 1) return;
+    const restanti = scout.sets.filter((set) => set.n !== n);
+    aggiorna({
+      ...scout,
+      sets: restanti.map((set, index) => ({ ...set, n: index + 1 })),
+      azioni: scout.azioni
+        .filter((voce) => voce.set !== n)
+        .map((voce) => ({ ...voce, set: voce.set > n ? voce.set - 1 : voce.set })),
+      generici: (scout.generici ?? [])
+        .filter((voce) => voce.set !== n)
+        .map((voce) => ({ ...voce, set: voce.set > n ? voce.set - 1 : voce.set })),
+      setCorrente: Math.min(
+        scout.setCorrente > n ? scout.setCorrente - 1 : scout.setCorrente,
+        restanti.length,
+      ),
+    });
+  };
+
+  /** Un set senza dati si elimina subito, uno con dati chiede conferma. */
+  const richiediEliminaSet = (n) => {
+    if (descriviSet(n).vuoto) eliminaSet(n);
+    else setSetDaEliminare(n);
+  };
+
+  const confermaEliminaSet = () => {
+    const n = setDaEliminare;
+    setSetDaEliminare(null);
+    if (n !== null) eliminaSet(n);
+  };
+
+  /**
+   * Registra l'azione e aggiorna in automatico il punteggio del set corrente:
+   * # fa segnare un punto a noi, = un punto all'avversario.
+   */
+  const registra = (numero, azione, esito) => {
+    const punti = puntiPerEsito(esito);
     aggiorna({
       ...scout,
       azioni: [...scout.azioni, { ts: Date.now(), set: scout.setCorrente, numero, azione, esito }],
+      sets: applicaPunti(scout.sets, scout.setCorrente, punti.nostro, punti.loro),
     });
+  };
 
   /**
    * Errore generico: dà un punto all'avversario e registra la statistica
@@ -72,12 +150,10 @@ export default function ScoutSessione() {
     aggiorna({
       ...scout,
       generici: [...(scout.generici ?? []), { ts: Date.now(), set: scout.setCorrente }],
-      sets: scout.sets.map((set) =>
-        set.n === scout.setCorrente ? { ...set, loro: Math.min(set.loro + 1, 999) } : set,
-      ),
+      sets: applicaPunti(scout.sets, scout.setCorrente, 0, 1),
     });
 
-  /** Rimuove l'ultimo dato inserito (azione o errore generico). */
+  /** Rimuove l'ultimo dato inserito (azione o errore generico), con il suo punto. */
   const annullaUltimo = () => {
     const ultimaAzione = scout.azioni[scout.azioni.length - 1] ?? null;
     const ultimoGenerico = scout.generici?.[scout.generici.length - 1] ?? null;
@@ -88,17 +164,30 @@ export default function ScoutSessione() {
       aggiorna({
         ...scout,
         generici: scout.generici.filter((voce) => voce.id !== ultimoGenerico.id),
-        sets: scout.sets.map((set) =>
-          set.n === ultimoGenerico.set ? { ...set, loro: Math.max(0, set.loro - 1) } : set,
-        ),
+        sets: applicaPunti(scout.sets, ultimoGenerico.set, 0, -1),
       });
       return;
     }
-    aggiorna({ ...scout, azioni: scout.azioni.slice(0, -1) });
+    // Un esito automatico (# o =) aveva mosso il punteggio: lo si riporta indietro.
+    const punti = puntiPerEsito(ultimaAzione.esito);
+    aggiorna({
+      ...scout,
+      azioni: scout.azioni.slice(0, -1),
+      sets: applicaPunti(scout.sets, ultimaAzione.set, -punti.nostro, -punti.loro),
+    });
   };
 
-  const rimuoviAzione = (azioneId) =>
-    aggiorna({ ...scout, azioni: scout.azioni.filter((azione) => azione.id !== azioneId) });
+  /** Toglie un'azione dalla cronologia, riportando indietro il suo punto. */
+  const rimuoviAzione = (azioneId) => {
+    const azione = scout.azioni.find((voce) => voce.id === azioneId);
+    if (!azione) return;
+    const punti = puntiPerEsito(azione.esito);
+    aggiorna({
+      ...scout,
+      azioni: scout.azioni.filter((voce) => voce.id !== azioneId),
+      sets: applicaPunti(scout.sets, azione.set, -punti.nostro, -punti.loro),
+    });
+  };
 
   /** Toglie un errore generico dall'elenco, riportando indietro il punto. */
   const rimuoviGenerico = (genericoId) => {
@@ -107,14 +196,9 @@ export default function ScoutSessione() {
     aggiorna({
       ...scout,
       generici: scout.generici.filter((voce) => voce.id !== genericoId),
-      sets: scout.sets.map((set) =>
-        set.n === generico.set ? { ...set, loro: Math.max(0, set.loro - 1) } : set,
-      ),
+      sets: applicaPunti(scout.sets, generico.set, 0, -1),
     });
   };
-
-  const aggiungiNumero = (numero) =>
-    aggiorna({ ...scout, numeriExtra: [...scout.numeriExtra, numero] });
 
   if (!scout) return <Navigate to="/scout" replace />;
 
@@ -154,6 +238,7 @@ export default function ScoutSessione() {
         onSelezionaSet={selezionaSet}
         onAggiungiSet={aggiungiSet}
         onErroreGenerico={registraErroreGenerico}
+        onEliminaSet={richiediEliminaSet}
       />
 
       <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
@@ -170,11 +255,22 @@ export default function ScoutSessione() {
           onAnnullaUltimo={annullaUltimo}
           onRimuoviAzione={rimuoviAzione}
           onRimuoviGenerico={rimuoviGenerico}
-          onAggiungiNumero={aggiungiNumero}
         />
       ) : (
         <Riepilogo scout={scout} giocatori={giocatori} squadraNome={squadra?.nome ?? ''} />
       )}
+
+      <ConfirmDialog
+        open={setDaEliminare !== null}
+        title="Elimina set"
+        message={
+          setDaEliminare !== null &&
+          `Nel set ${setDaEliminare} ci sono ${descriviSet(setDaEliminare).elenco}. Eliminandolo i dati verranno persi per sempre: vuoi davvero eliminarlo?`
+        }
+        confirmLabel="Elimina"
+        onConfirm={confermaEliminaSet}
+        onCancel={() => setSetDaEliminare(null)}
+      />
     </div>
   );
 }

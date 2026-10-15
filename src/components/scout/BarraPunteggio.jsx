@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Card, IconButton } from '../ui.jsx';
 import { SET_MASSIMO } from '../../services/scout.js';
 
@@ -19,6 +19,7 @@ export default function BarraPunteggio({
   onSelezionaSet,
   onAggiungiSet,
   onErroreGenerico,
+  onEliminaSet,
 }) {
   const setAttivo = scout.sets.find((set) => set.n === scout.setCorrente) ?? scout.sets[0];
   const piuSet = scout.sets.length < SET_MASSIMO;
@@ -37,26 +38,46 @@ export default function BarraPunteggio({
           </span>
           {scout.sets.map((set) => {
             const attivo = set.n === setAttivo.n;
+            const conElimina = scout.sets.length > 1;
             return (
-              <button
+              <div
                 key={set.n}
-                type="button"
-                aria-label={`Set ${set.n}`}
-                aria-pressed={attivo}
-                onClick={() => onSelezionaSet(set.n)}
-                className={`flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border px-3 text-sm transition-colors duration-150 ${
+                className={`flex h-10 items-center overflow-hidden rounded-xl border transition-colors duration-150 ${
                   attivo
                     ? 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25'
                     : 'border-line-strong bg-panel-2 text-ink-soft hover:text-ink'
                 }`}
               >
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                  {set.n}
-                </span>
-                <span className="font-semibold tabular-nums">
-                  {set.nostro}-{set.loro}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  aria-label={`Set ${set.n}`}
+                  aria-pressed={attivo}
+                  onClick={() => onSelezionaSet(set.n)}
+                  className={`flex h-full cursor-pointer items-center gap-1.5 text-sm ${
+                    conElimina ? 'pl-3 pr-1.5' : 'px-3'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">
+                    {set.n}
+                  </span>
+                  <span className="font-semibold tabular-nums">
+                    {set.nostro}-{set.loro}
+                  </span>
+                </button>
+                {conElimina && (
+                  <button
+                    type="button"
+                    aria-label={`Elimina set ${set.n}`}
+                    title={`Elimina il set ${set.n}`}
+                    onClick={() => onEliminaSet(set.n)}
+                    className={`flex h-full w-8 cursor-pointer items-center justify-center transition-opacity ${
+                      attivo ? 'hover:opacity-80' : 'opacity-55 hover:opacity-100'
+                    }`}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             );
           })}
           <IconButton

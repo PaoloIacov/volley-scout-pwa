@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useToast } from '../Toast.jsx';
 import { Button, Card } from '../ui.jsx';
 import { AZIONI, ESITI, ESITO_CLASSI, isLibero } from '../../lib/scout-stats.js';
@@ -39,10 +38,8 @@ export default function Inserimento({
   onAnnullaUltimo,
   onRimuoviAzione,
   onRimuoviGenerico,
-  onAggiungiNumero,
 }) {
   const toast = useToast();
-  const [numeroLibero, setNumeroLibero] = useState('');
 
   const osservaRosa = scout.squadraOsservata === 'propria' && giocatori.length > 0;
   const convocati =
@@ -52,7 +49,7 @@ export default function Inserimento({
         .filter((giocatore) => !convocati || convocati.has(giocatore.numeroMaglia))
         .map((giocatore) => giocatore.numeroMaglia)
     : Array.from({ length: 20 }, (_, index) => index + 1);
-  const numeri = [...new Set([...base, ...scout.numeriExtra])].sort((a, b) => a - b);
+  const numeri = [...new Set(base)].sort((a, b) => a - b);
   const cognomi = new Map(
     giocatori.map((giocatore) => [giocatore.numeroMaglia, giocatore.cognome || giocatore.nome]),
   );
@@ -88,17 +85,6 @@ export default function Inserimento({
     onRegistra(numeroSel, azioneSel, esito);
     // Il giocatore resta selezionato: si registra al tocco l'esito successivo.
     setAzioneSel(null);
-  };
-
-  const aggiungiNumero = () => {
-    const numero = Number.parseInt(numeroLibero, 10);
-    if (Number.isNaN(numero) || numero < 1 || numero > 99) {
-      toast.show('Inserisci un numero tra 1 e 99.', 'error');
-      return;
-    }
-    onAggiungiNumero(numero);
-    setNumeroLibero('');
-    setNumeroSel(numero);
   };
 
   // Cronologia mista: azioni ed errori generici, dal più recente al più vecchio.
@@ -156,32 +142,7 @@ export default function Inserimento({
             );
           })}
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            max={99}
-            inputMode="numeric"
-            placeholder="N. extra"
-            aria-label="Altro numero"
-            className="h-11 w-28 rounded-xl border border-line-strong bg-panel-2 px-3 text-sm text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            value={numeroLibero}
-            onChange={(e) => setNumeroLibero(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                aggiungiNumero();
-              }
-            }}
-          />
-          <Button variant="outline" size="sm" onClick={aggiungiNumero}>
-            <Plus size={14} />
-            Aggiungi numero
-          </Button>
-          {!osservaRosa && (
-            <span className="text-xs text-ink-mute">Numeri da 1 a 20, oppure aggiungine uno.</span>
-          )}
-        </div>
+        {!osservaRosa && <p className="mt-3 text-xs text-ink-mute">Numeri da 1 a 20.</p>}
 
         {/* Azione */}
         <div className="mt-5 border-t border-line pt-5">
@@ -216,7 +177,9 @@ export default function Inserimento({
         <div className="mt-5 border-t border-line pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-ink">Esito</h2>
-            <p className="text-xs text-ink-mute">Un tocco e il dato viene salvato</p>
+            <p className="text-xs text-ink-mute">
+              Un tocco e il dato viene salvato · # +1 Noi, = +1 Loro
+            </p>
           </div>
           <div className="mt-3 grid grid-cols-4 gap-2 lg:max-w-[760px]">
             {ESITI.map((esito) => (
