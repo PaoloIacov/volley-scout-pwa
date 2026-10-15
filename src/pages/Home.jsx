@@ -3,20 +3,43 @@ import {
   CalendarDays,
   ChevronRight,
   Clock,
-  Dumbbell,
   MapPin,
+  Settings,
+  Shirt,
   Trophy,
   Users,
+  Volleyball,
 } from 'lucide-react';
 import { getGiocatori } from '../services/giocatori.js';
 import { getPartite } from '../services/calendario.js';
+import { fotoSquadra, getSquadre } from '../services/squadre.js';
+import { useSquadraAttiva } from '../hooks/useSquadre.js';
 import { parseDate, shortDate, todayISO } from '../lib/dates.js';
-import { ALLENAMENTI, SEDE, SQUADRA, STAGIONE } from '../constants.js';
-import { Badge, ButtonLink, Card } from '../components/ui.jsx';
+import { Badge, ButtonLink, Card, EmptyState, Section } from '../components/ui.jsx';
 
 export default function Home() {
-  const giocatori = getGiocatori();
-  const partite = getPartite();
+  const squadra = useSquadraAttiva();
+
+  if (!squadra) {
+    return (
+      <EmptyState
+        icon={Shirt}
+        title="Nessuna squadra"
+        description="Aggiungi una squadra per iniziare a gestire rosa dei giocatori e calendario partite."
+        action={
+          <ButtonLink to="/squadre" variant="primary">
+            Gestisci le squadre
+          </ButtonLink>
+        }
+      />
+    );
+  }
+
+  const { club, stagione } = squadra;
+  const copertina = fotoSquadra(squadra);
+  const giocatori = getGiocatori(squadra.id);
+  const partite = getPartite(squadra.id);
+  const squadre = getSquadre();
 
   const todayTime = parseDate(todayISO()).getTime();
   const prossima = partite.find((p) => parseDate(p.dataISO).getTime() >= todayTime) ?? partite[0];
@@ -29,12 +52,7 @@ export default function Home() {
       icon: CalendarDays,
       to: '/calendario',
     },
-    {
-      label: 'Allenamenti a settimana',
-      value: ALLENAMENTI.length,
-      icon: Dumbbell,
-      to: '/home',
-    },
+    { label: 'Squadre', value: squadre.length, icon: Shirt, to: '/squadre' },
   ];
 
   return (
@@ -42,24 +60,34 @@ export default function Home() {
       {/* Hero */}
       <Card className="overflow-hidden p-0">
         <div className="relative">
-          <img
-            src="images/circo.JPG"
-            alt={`${SQUADRA} ${STAGIONE}`}
-            className="h-56 w-full object-cover object-center sm:h-72"
-            loading="eager"
-            width={1158}
-            height={673}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
+          {copertina ? (
+            <img
+              src={copertina}
+              alt={`${squadra.nome} ${stagione}`.trim()}
+              className="h-56 w-full object-cover object-center sm:h-72"
+              loading="eager"
+              width={1158}
+              height={673}
+            />
+          ) : (
+            /* Nessuna foto caricata: motivo grafico generico. */
+            <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-accent via-accent-strong to-accent-hover sm:h-72">
+              <Volleyball size={72} strokeWidth={1.5} className="text-on-accent/50" />
+            </div>
+          )}
+          {/* Overlay scuro: leggibile sopra qualsiasi foto, in entrambi i temi. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-5 sm:p-6">
-            <Badge className="w-fit bg-red-600 text-white shadow-lg shadow-red-950/50">
-              Stagione {STAGIONE}
-            </Badge>
+            {stagione && (
+              <Badge className="w-fit bg-accent text-on-accent shadow-lg shadow-black/40">
+                Stagione {stagione}
+              </Badge>
+            )}
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                {SQUADRA}
+                {squadra.nome}
               </h1>
-              <p className="mt-1 text-sm text-zinc-400">{SEDE.nome} · Albano Laziale</p>
+              {club && <p className="mt-1 text-sm text-zinc-300">{club}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <ButtonLink to="/squadra" variant="primary" size="sm">
@@ -79,108 +107,79 @@ export default function Home() {
       <div className="grid gap-3 sm:grid-cols-3">
         {stats.map(({ label, value, icon: Icon, to }) => (
           <Link key={label} to={to} className="group">
-            <Card className="flex items-center gap-4 p-4 transition-colors duration-150 group-hover:border-zinc-700 group-hover:bg-zinc-900">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 text-red-400 ring-1 ring-red-500/25">
+            <Card className="flex items-center gap-4 p-4 transition-colors duration-150 group-hover:border-line-strong group-hover:bg-panel-2">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 text-accent-text ring-1 ring-accent/25">
                 <Icon size={20} />
               </div>
               <div>
-                <p className="text-2xl font-semibold leading-none text-white">{value}</p>
-                <p className="mt-1.5 text-xs text-zinc-500">{label}</p>
+                <p className="text-2xl font-semibold leading-none text-ink">{value}</p>
+                <p className="mt-1.5 text-xs text-ink-mute">{label}</p>
               </div>
             </Card>
           </Link>
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Allenamenti */}
-        <Card className="p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-600/15 text-red-400 ring-1 ring-red-500/25">
-              <Dumbbell size={19} />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-white">Allenamenti</h2>
-              <p className="text-xs text-zinc-500">Orari settimanali</p>
-            </div>
-          </div>
-          <ul className="mt-4 divide-y divide-zinc-800/80">
-            {ALLENAMENTI.map(({ giorno, orario }) => (
-              <li key={giorno} className="flex items-center justify-between py-3">
-                <span className="text-sm font-medium text-zinc-200">{giorno}</span>
-                <span className="inline-flex items-center gap-2 rounded-lg bg-zinc-800/70 px-2.5 py-1 text-xs font-semibold text-zinc-300">
-                  <Clock size={13} className="text-red-400" />
-                  {orario}
+      {/* Prossima partita */}
+      <Section icon={Trophy} title="Prossima partita" subtitle="Dal calendario">
+        {prossima ? (
+          <div className="flex flex-1 flex-col justify-between gap-4">
+            <div className="rounded-2xl border border-line bg-panel-2 p-4">
+              <p className="text-lg font-semibold text-ink">vs {prossima.avversario}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarDays size={13} className="text-accent-text" />
+                  {shortDate(prossima.dataISO)}
                 </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        {/* Prossima partita */}
-        <Card className="flex flex-col p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-600/15 text-red-400 ring-1 ring-red-500/25">
-              <Trophy size={19} />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-white">Prossima partita</h2>
-              <p className="text-xs text-zinc-500">Dal calendario</p>
-            </div>
-          </div>
-
-          {prossima ? (
-            <div className="mt-4 flex flex-1 flex-col justify-between gap-4">
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-                <p className="text-lg font-semibold text-white">vs {prossima.avversario}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
-                  <span className="inline-flex items-center gap-1.5">
-                    <CalendarDays size={13} className="text-red-400" />
-                    {shortDate(prossima.dataISO)}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock size={13} className="text-red-400" />
-                    {prossima.orarioInizio}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <MapPin size={13} className="text-red-400" />
-                    {prossima.luogo}
-                  </span>
-                </div>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock size={13} className="text-accent-text" />
+                  {prossima.orarioInizio}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin size={13} className="text-accent-text" />
+                  {prossima.luogo}
+                </span>
               </div>
-              <Link to="/calendario" className="text-sm font-medium text-red-400 hover:text-red-300">
-                Vedi tutto il calendario
-                <ChevronRight size={14} className="inline" />
-              </Link>
             </div>
-          ) : (
-            <div className="mt-4 flex flex-1 flex-col justify-between gap-4">
-              <p className="text-sm text-zinc-500">Nessuna partita in calendario per ora.</p>
-              <Link to="/calendario" className="text-sm font-medium text-red-400 hover:text-red-300">
-                Aggiungi la prima partita
-                <ChevronRight size={14} className="inline" />
-              </Link>
-            </div>
-          )}
-        </Card>
-      </div>
+            <Link
+              to="/calendario"
+              className="text-sm font-medium text-accent-text transition-colors hover:text-accent-hover"
+            >
+              Vedi tutto il calendario
+              <ChevronRight size={14} className="inline" />
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col justify-between gap-4">
+            <p className="text-sm text-ink-mute">Nessuna partita in calendario per ora.</p>
+            <Link
+              to="/calendario"
+              className="text-sm font-medium text-accent-text transition-colors hover:text-accent-hover"
+            >
+              Aggiungi la prima partita
+              <ChevronRight size={14} className="inline" />
+            </Link>
+          </div>
+        )}
+      </Section>
 
-      {/* Sede */}
-      <a href={SEDE.mapsUrl} target="_blank" rel="noreferrer" className="group block">
-        <Card className="flex items-center gap-4 p-5 transition-colors duration-150 group-hover:border-zinc-700">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-600/15 text-red-400 ring-1 ring-red-500/25">
-            <MapPin size={22} />
+      {/* Personalizza */}
+      <Link to="/impostazioni" className="group block">
+        <Card className="flex items-center gap-4 p-5 transition-colors duration-150 group-hover:border-line-strong">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent-text ring-1 ring-accent/25">
+            <Settings size={22} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white">Sede ufficiale</p>
-            <p className="mt-0.5 truncate text-sm text-zinc-400">
-              {SEDE.indirizzo} · {SEDE.soprannome}
-            </p>
-            <p className="mt-1 text-xs font-medium text-red-400">Apri in Google Maps</p>
+            <p className="text-sm font-semibold text-ink">Personalizza l'app</p>
+            <p className="mt-0.5 truncate text-sm text-ink-soft">Tema, backup e ripristino dati</p>
+            <p className="mt-1 text-xs font-medium text-accent-text">Apri le impostazioni</p>
           </div>
-          <ChevronRight size={18} className="shrink-0 text-zinc-600 transition-transform duration-150 group-hover:translate-x-1 group-hover:text-zinc-400" />
+          <ChevronRight
+            size={18}
+            className="shrink-0 text-ink-faint transition-transform duration-150 group-hover:translate-x-1 group-hover:text-ink-mute"
+          />
         </Card>
-      </a>
+      </Link>
     </div>
   );
 }

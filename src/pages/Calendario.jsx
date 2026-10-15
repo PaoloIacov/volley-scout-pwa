@@ -7,10 +7,12 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Shirt,
   Trash,
   Upload,
 } from 'lucide-react';
 import { getPartite, setPartite } from '../services/calendario.js';
+import { getSquadraAttiva } from '../services/squadre.js';
 import { downloadJSON, openJSONFile } from '../lib/json-io.js';
 import { dayMonth, parseDate, shortDate, todayISO } from '../lib/dates.js';
 import { useToast } from '../components/Toast.jsx';
@@ -18,6 +20,7 @@ import PartitaForm from '../forms/PartitaForm.jsx';
 import {
   Badge,
   Button,
+  ButtonLink,
   Card,
   ConfirmDialog,
   EmptyState,
@@ -27,14 +30,15 @@ import {
 
 export default function Calendario() {
   const toast = useToast();
-  const [partite, setPartiteState] = useState(() => getPartite());
+  const squadra = getSquadraAttiva();
+  const [partite, setPartiteState] = useState(() => (squadra ? getPartite(squadra.id) : []));
   const [formState, setFormState] = useState(null); // { partita, index }
   const [toDelete, setToDelete] = useState(null); // { partita, index }
   const [pendingImport, setPendingImport] = useState(null);
 
   const persist = (list) => {
-    setPartite(list);
-    setPartiteState(getPartite());
+    setPartite(squadra.id, list);
+    setPartiteState(getPartite(squadra.id));
   };
 
   const openNew = () => setFormState({ partita: null, index: -1 });
@@ -75,11 +79,26 @@ export default function Calendario() {
   };
 
   const confirmImport = () => {
-    setPartite(pendingImport);
-    setPartiteState(getPartite());
+    setPartite(squadra.id, pendingImport);
+    setPartiteState(getPartite(squadra.id));
     setPendingImport(null);
     toast.show('Partite importate con successo!');
   };
+
+  if (!squadra) {
+    return (
+      <EmptyState
+        icon={Shirt}
+        title="Nessuna squadra attiva"
+        description="Aggiungi una squadra per poter comporre il calendario delle partite."
+        action={
+          <ButtonLink to="/squadre" variant="primary">
+            Gestisci le squadre
+          </ButtonLink>
+        }
+      />
+    );
+  }
 
   const today = todayISO();
   const todayTime = parseDate(today).getTime();
@@ -89,7 +108,9 @@ export default function Calendario() {
       <PageHeader
         icon={CalendarDays}
         title="Calendario partite"
-        subtitle={`${partite.length} ${partite.length === 1 ? 'partita' : 'partite'} in programma`}
+        subtitle={`${partite.length} ${
+          partite.length === 1 ? 'partita' : 'partite'
+        } in programma · ${squadra.nome}`}
         actions={
           <>
             <Button onClick={openNew}>
@@ -135,8 +156,8 @@ export default function Calendario() {
                 <div
                   className={`flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl border ${
                     isPast
-                      ? 'border-zinc-700 bg-zinc-800/60 text-zinc-400'
-                      : 'border-red-500/25 bg-red-500/10 text-red-400'
+                      ? 'border-line-strong bg-panel-2 text-ink-soft'
+                      : 'border-accent/25 bg-accent/10 text-accent-text'
                   }`}
                 >
                   <span className="text-xl font-bold leading-none">{day}</span>
@@ -145,22 +166,24 @@ export default function Calendario() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-base font-semibold text-white">vs {partita.avversario}</p>
+                    <p className="text-base font-semibold text-ink">vs {partita.avversario}</p>
                     {isPast && (
-                      <Badge className="bg-zinc-800 text-zinc-400 ring-1 ring-zinc-700">Passata</Badge>
+                      <Badge className="bg-panel-2 text-ink-soft ring-1 ring-line-strong">
+                        Passata
+                      </Badge>
                     )}
                   </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
                     <span className="inline-flex items-center gap-1.5">
-                      <Calendar size={13} className="text-zinc-500" />
+                      <Calendar size={13} className="text-ink-mute" />
                       {shortDate(partita.dataISO)}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                      <Clock size={13} className="text-zinc-500" />
+                      <Clock size={13} className="text-ink-mute" />
                       {partita.orarioInizio}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                      <MapPin size={13} className="text-zinc-500" />
+                      <MapPin size={13} className="text-ink-mute" />
                       {partita.luogo}
                     </span>
                   </div>

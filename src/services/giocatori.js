@@ -33,17 +33,47 @@ function formatGiocatore(giocatore) {
   };
 }
 
-/** Lista ordinata per numero di maglia, pronta per la visualizzazione. */
-export function getGiocatori() {
+function tutti() {
   const giocatori = readJSON(STORAGE_KEY, []);
-  const list = Array.isArray(giocatori) ? giocatori : [];
-  return list.map(formatGiocatore).sort((a, b) => a.numeroMaglia - b.numeroMaglia);
+  return Array.isArray(giocatori) ? giocatori.filter(Boolean) : [];
 }
 
-/** Salva la rosa completa (normalizzata e ordinata per maglia). */
-export function setGiocatori(giocatori) {
+/**
+ * Rosa di una squadra, ordinata per numero di maglia e pronta per la
+ * visualizzazione.
+ */
+export function getGiocatori(squadraId) {
+  return tutti()
+    .filter((giocatore) => giocatore.squadraId === squadraId)
+    .map(formatGiocatore)
+    .sort((a, b) => a.numeroMaglia - b.numeroMaglia);
+}
+
+/**
+ * Salva la rosa della squadra: i giocatori delle altre squadre restano
+ * invariati, quelli della squadra indicata vengono sostituiti.
+ */
+export function setGiocatori(squadraId, giocatori) {
+  const list = Array.isArray(giocatori) ? giocatori : [];
+  const normalized = [
+    ...tutti().filter((giocatore) => giocatore.squadraId !== squadraId),
+    ...list.map((giocatore) => ({ ...normalizeGiocatore(giocatore), squadraId })),
+  ].sort((a, b) => a.numeroMaglia - b.numeroMaglia);
+  writeJSON(STORAGE_KEY, normalized);
+}
+
+/** Rosa di tutte le squadre (usata dal backup completo). */
+export function getTuttiGiocatori() {
+  return tutti()
+    .map(formatGiocatore)
+    .sort((a, b) => a.numeroMaglia - b.numeroMaglia);
+}
+
+/** Sostituisce l'intera rosa di tutte le squadre (usata dall'import del backup). */
+export function setTuttiGiocatori(giocatori) {
   const list = Array.isArray(giocatori) ? giocatori : [];
   const normalized = list
+    .filter(Boolean)
     .map(normalizeGiocatore)
     .sort((a, b) => a.numeroMaglia - b.numeroMaglia);
   writeJSON(STORAGE_KEY, normalized);

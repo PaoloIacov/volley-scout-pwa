@@ -11,11 +11,11 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'images/circo.JPG'],
+      includeAssets: ['favicon.ico'],
       manifest: {
-        name: 'Volley Scout - 1DM Albano Circo',
+        name: 'Volley Scout',
         short_name: 'Volley Scout',
-        description: 'Gestione rosa, calendario e statistiche della 1DM Albano Circo.',
+        description: 'Gestione squadre, rosa dei giocatori e calendario partite.',
         lang: 'it',
         display: 'standalone',
         theme_color: '#09090b',

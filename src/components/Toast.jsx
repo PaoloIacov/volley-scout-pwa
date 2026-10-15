@@ -42,12 +42,12 @@ export function ToastProvider({ children }) {
             <div
               key={toast.id}
               role="status"
-              className={`anim-slide pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/95 px-4 py-3 text-sm text-zinc-200 shadow-2xl shadow-black/50 backdrop-blur ${TOAST_STYLES[toast.type]}`}
+              className={`anim-slide pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-line bg-panel/95 px-4 py-3 text-sm shadow-2xl shadow-black/40 backdrop-blur ${TOAST_STYLES[toast.type]}`}
             >
               <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${TOAST_STYLES[toast.type]}`}>
                 <Icon size={15} />
               </span>
-              <p className="text-zinc-200">{toast.message}</p>
+              <p className="text-ink">{toast.message}</p>
             </div>
           );
         })}

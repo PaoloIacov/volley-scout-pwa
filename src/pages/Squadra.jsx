@@ -7,6 +7,7 @@ import {
   Plus,
   Shield,
   ShieldCheck,
+  Shirt,
   Trash,
   Upload,
   User,
@@ -14,11 +15,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { getGiocatori, setGiocatori } from '../services/giocatori.js';
+import { getSquadraAttiva } from '../services/squadre.js';
 import { downloadJSON, openJSONFile } from '../lib/json-io.js';
 import { useToast } from '../components/Toast.jsx';
 import GiocatoreForm from '../forms/GiocatoreForm.jsx';
 import {
   Button,
+  ButtonLink,
   Card,
   ConfirmDialog,
   EmptyState,
@@ -42,14 +45,15 @@ function ruoloIcon(ruolo) {
 
 export default function Squadra() {
   const toast = useToast();
-  const [giocatori, setGiocatoriState] = useState(() => getGiocatori());
+  const squadra = getSquadraAttiva();
+  const [giocatori, setGiocatoriState] = useState(() => (squadra ? getGiocatori(squadra.id) : []));
   const [formState, setFormState] = useState(null); // { giocatore, index }
   const [toDelete, setToDelete] = useState(null); // { giocatore, index }
   const [pendingImport, setPendingImport] = useState(null);
 
   const persist = (list) => {
-    setGiocatori(list);
-    setGiocatoriState(getGiocatori());
+    setGiocatori(squadra.id, list);
+    setGiocatoriState(getGiocatori(squadra.id));
   };
 
   const openNew = () => setFormState({ giocatore: null, index: -1 });
@@ -90,18 +94,35 @@ export default function Squadra() {
   };
 
   const confirmImport = () => {
-    setGiocatori(pendingImport);
-    setGiocatoriState(getGiocatori());
+    setGiocatori(squadra.id, pendingImport);
+    setGiocatoriState(getGiocatori(squadra.id));
     setPendingImport(null);
     toast.show('Giocatori importati con successo!');
   };
+
+  if (!squadra) {
+    return (
+      <EmptyState
+        icon={Shirt}
+        title="Nessuna squadra attiva"
+        description="Aggiungi una squadra per poter gestire la rosa dei giocatori."
+        action={
+          <ButtonLink to="/squadre" variant="primary">
+            Gestisci le squadre
+          </ButtonLink>
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         icon={Users}
         title="Gestione giocatori"
-        subtitle={`${giocatori.length} ${giocatori.length === 1 ? 'giocatore' : 'giocatori'} in rosa`}
+        subtitle={`${giocatori.length} ${
+          giocatori.length === 1 ? 'giocatore' : 'giocatori'
+        } in rosa · ${squadra.nome}`}
         actions={
           <>
             <Button onClick={openNew}>
@@ -138,15 +159,15 @@ export default function Squadra() {
             const Icon = ruoloIcon(giocatore.ruolo);
             return (
               <Card key={`${giocatore.numeroMaglia}-${index}`} className="flex items-center gap-4 p-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-700 text-lg font-bold text-white shadow-lg shadow-red-950/50">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-strong text-lg font-bold text-on-accent shadow-lg shadow-accent/30">
                   {giocatore.numeroMaglia}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white sm:text-base">
+                  <p className="truncate text-sm font-semibold text-ink sm:text-base">
                     {giocatore.nome} {giocatore.cognome}
                   </p>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-400">
-                    <Icon size={14} className="text-red-400" />
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-soft">
+                    <Icon size={14} className="text-accent-text" />
                     {giocatore.ruolo}
                   </p>
                 </div>

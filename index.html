@@ -6,10 +6,28 @@
     <meta name="theme-color" content="#09090b" />
     <meta
       name="description"
-      content="Volley Scout - gestione rosa, calendario partite e appuntamenti della 1DM Albano Circo."
+      content="Volley Scout - gestione squadre, rosa dei giocatori e calendario partite."
     />
-    <title>Volley Scout - 1DM Albano Circo</title>
+    <title>Volley Scout</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <script>
+      // Applica il tema salvato prima del primo paint (niente flash chiaro/scuro).
+      (function () {
+        var dark = false;
+        try {
+          var raw = localStorage.getItem('impostazioni');
+          var tema = raw ? (JSON.parse(raw) || {}).tema : null;
+          var system =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          dark = tema === 'scuro' || (tema !== 'chiaro' && Boolean(system));
+        } catch (error) {
+          dark = false;
+        }
+        if (dark) document.documentElement.classList.add('dark');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#09090b' : '#f4f4f5');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

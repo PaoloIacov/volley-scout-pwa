@@ -1,10 +1,11 @@
 # Volley Scout PWA
 
-Applicazione PWA per la gestione della **1DM Albano Circo**: rosa dei giocatori,
-calendario partite e appuntamenti settimanali.
+Applicazione PWA per la gestione di **una o più squadre di pallavolo**: rosa dei
+giocatori, calendario partite e statistiche.
 
 Riscritta completamente in **React** (Vite + Tailwind CSS v4), con interfaccia
-scuro moderna, uniforme e responsive (tab bar dedicata su mobile).
+moderna, uniforme e responsive (tab bar dedicata su mobile), tema chiaro/scuro
+e design system a token condivisi.
 
 ## Stack
 
@@ -17,12 +18,17 @@ scuro moderna, uniforme e responsive (tab bar dedicata su mobile).
 
 ## Funzionalità
 
-- **Home**: hero della squadra, statistiche rapide, orari di allenamento,
-  prossima partita, sede ufficiale con link a Google Maps
-- **Squadra**: CRUD giocatori (nome, cognome, numero maglia, ruolo),
+- **Squadre**: CRUD squadre multiple (nome, club, stagione, foto di copertina
+  caricata o da URL), selezione della squadra attiva; ogni squadra ha la sua
+  rosa e il suo calendario, eliminando la squadra vengono eliminati anche i dati
+  associati. Al primo avvio i dati preesistenti vengono migrati alla prima squadra
+- **Home**: hero della squadra attiva, statistiche rapide, prossima partita
+- **Rosa**: CRUD giocatori (nome, cognome, numero maglia, ruolo),
   validazione dei campi, import/export JSON
 - **Calendario**: CRUD partite (data, orario, avversario, luogo),
   ordinamento per data, evidenziazione delle gare passate, import/export JSON
+- **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
+  (squadre + rosa + calendario) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)
 
 ## Sviluppo
@@ -45,10 +51,10 @@ In produzione l'app vive sotto `/volley-scout-pwa/` (base path impostata in
 
 ```
 src/
-├── components/   # Layout, Toast, elementi di UI riusabili (Modal, Button, Card…)
-├── forms/        # Form modali con validazione (giocatore, partita)
-├── hooks/        # useForm (validazione touched/submit)
-├── lib/          # storage, date, import/export JSON
-├── pages/        # Home, Squadra, Calendario
+├── components/   # Layout, Toast, SettingsContext, elementi di UI riusabili
+├── forms/        # Form modali con validazione (squadra, giocatore, partita)
+├── hooks/        # useForm (validazione touched/submit), useSquadre (reattività)
+├── lib/          # storage, date, immagini, import/export JSON
+├── pages/        # Home, Squadre, Squadra (rosa), Calendario, Impostazioni
 └── services/     # accesso ai dati (localStorage) con normalizzazione
 ```

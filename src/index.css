@@ -1,8 +1,69 @@
 @import 'tailwindcss';
 
+/*
+  Token di colore condivisi.
+  I valori in @theme sono quelli del TEMA CHIARO (default).
+  Il tema scuro sovrascrive le stesse variabili sulla classe `.dark`
+  sull'elemento <html>: tutte le utility Tailwind (bg-panel, text-ink, ...)
+  leggono var(--color-*) a runtime, quindi il tema cambia in blocco.
+*/
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
+
+  /* superfici */
+  --color-app: #f4f4f5;
+  --color-panel: #ffffff;
+  --color-panel-2: #fafafa;
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+
+  /* testo */
+  --color-ink: #18181b;
+  --color-ink-soft: #3f3f46;
+  --color-ink-mute: #52525b;
+  --color-ink-faint: #a1a1aa;
+
+  /* accento */
+  --color-accent: #dc2626;
+  --color-accent-strong: #b91c1c;
+  --color-accent-text: #b91c1c;
+  --color-accent-hover: #991b1b;
+  --color-on-accent: #ffffff;
+
+  /* stati */
+  --color-ok: #059669;
+  --color-ko: #dc2626;
+  --color-info: #0284c7;
+}
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-app: #09090b;
+  --color-panel: #18181b;
+  --color-panel-2: #27272a;
+  --color-line: #27272a;
+  --color-line-strong: #3f3f46;
+
+  --color-ink: #fafafa;
+  --color-ink-soft: #d4d4d8;
+  --color-ink-mute: #a1a1aa;
+  --color-ink-faint: #71717a;
+
+  --color-accent: #dc2626;
+  --color-accent-strong: #ef4444;
+  --color-accent-text: #f87171;
+  --color-accent-hover: #fca5a5;
+  --color-on-accent: #ffffff;
+
+  --color-ok: #34d399;
+  --color-ko: #f87171;
+  --color-info: #38bdf8;
 }
 
 html {
@@ -11,8 +72,8 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--color-zinc-950);
-  color: var(--color-zinc-100);
+  background-color: var(--color-app);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -39,7 +100,7 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -50,7 +111,7 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 

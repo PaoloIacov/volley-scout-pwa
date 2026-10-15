@@ -31,6 +31,9 @@ yarn-error.log
 .sass-cache/
 *.local
 
+# Anteprime generate da npm run icons
+/scripts/.preview/
+
 # System files
 .DS_Store
 Thumbs.db

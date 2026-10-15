@@ -7,7 +7,7 @@ import { Check, Info, TriangleAlert, X, XCircle } from 'lucide-react';
 export function Card({ className = '', children, ...props }) {
   return (
     <div
-      className={`rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-xl shadow-black/20 ${className}`}
+      className={`rounded-2xl border border-line bg-panel shadow-lg shadow-black/10 ${className}`}
       {...props}
     >
       {children}
@@ -20,12 +20,12 @@ export function PageHeader({ icon: Icon, title, subtitle, actions }) {
     <Card className="p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-600/15 text-red-400 ring-1 ring-red-500/25">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent-text ring-1 ring-accent/25">
             <Icon size={24} strokeWidth={2} />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">{title}</h1>
-            <p className="mt-0.5 text-sm text-zinc-400">{subtitle}</p>
+            <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{title}</h1>
+            <p className="mt-0.5 text-sm text-ink-soft">{subtitle}</p>
           </div>
         </div>
         {actions && <div className="flex flex-wrap gap-2 sm:justify-end">{actions}</div>}
@@ -37,12 +37,36 @@ export function PageHeader({ icon: Icon, title, subtitle, actions }) {
 export function EmptyState({ icon: Icon, title, description, action }) {
   return (
     <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-400">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-panel-2 text-ink-soft ring-1 ring-line">
         <Icon size={26} />
       </div>
-      <p className="font-medium text-zinc-200">{title}</p>
-      <p className="max-w-sm text-sm text-zinc-500">{description}</p>
+      <p className="font-medium text-ink">{title}</p>
+      <p className="max-w-sm text-sm text-ink-mute">{description}</p>
       {action && <div className="mt-2">{action}</div>}
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------------- sezioni */
+
+export function Section({ icon: Icon, title, subtitle, actions, children }) {
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {Icon && (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent-text ring-1 ring-accent/25">
+              <Icon size={19} />
+            </div>
+          )}
+          <div>
+            <h2 className="text-base font-semibold text-ink">{title}</h2>
+            {subtitle && <p className="text-xs text-ink-mute">{subtitle}</p>}
+          </div>
+        </div>
+        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      </div>
+      <div className="mt-4">{children}</div>
     </Card>
   );
 }
@@ -51,12 +75,12 @@ export function EmptyState({ icon: Icon, title, description, action }) {
 
 const BUTTON_VARIANTS = {
   primary:
-    'bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-950/40 focus-visible:outline-red-400',
+    'bg-accent text-on-accent hover:bg-accent-strong shadow-lg shadow-accent/25 focus-visible:outline-accent-text',
   outline:
-    'border border-zinc-700 bg-zinc-900/60 text-zinc-200 hover:border-zinc-600 hover:bg-zinc-800 focus-visible:outline-zinc-400',
-  ghost: 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:outline-zinc-400',
+    'border border-line-strong bg-panel-2 text-ink hover:border-ink-faint hover:bg-panel focus-visible:outline-ink-mute',
+  ghost: 'text-ink-soft hover:bg-panel-2 hover:text-ink focus-visible:outline-ink-mute',
   danger:
-    'border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 focus-visible:outline-red-400',
+    'border border-accent/30 bg-accent/10 text-accent-text hover:bg-accent/20 focus-visible:outline-accent-text',
 };
 
 const BUTTON_SIZES = {
@@ -64,11 +88,14 @@ const BUTTON_SIZES = {
   md: 'px-4 py-2.5 text-sm',
 };
 
+const BUTTON_BASE =
+  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-panel disabled:pointer-events-none disabled:opacity-40';
+
 export function Button({ variant = 'primary', size = 'md', className = '', type = 'button', ...props }) {
   return (
     <button
       type={type}
-      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:pointer-events-none disabled:opacity-40 ${BUTTON_VARIANTS[variant]} ${BUTTON_SIZES[size]} ${className}`}
+      className={`${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${BUTTON_SIZES[size]} ${className}`}
       {...props}
     />
   );
@@ -79,7 +106,7 @@ export function ButtonLink({ to, variant = 'primary', size = 'md', className = '
   return (
     <Link
       to={to}
-      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${BUTTON_VARIANTS[variant]} ${BUTTON_SIZES[size]} ${className}`}
+      className={`${BUTTON_BASE} ${BUTTON_VARIANTS[variant]} ${BUTTON_SIZES[size]} ${className}`}
       {...props}
     >
       {children}
@@ -93,7 +120,7 @@ export function IconButton({ label, variant = 'outline', className = '', childre
       type="button"
       title={label}
       aria-label={label}
-      className={`inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:pointer-events-none disabled:opacity-40 ${BUTTON_VARIANTS[variant]} ${className}`}
+      className={`${BUTTON_BASE} h-9 w-9 ${BUTTON_VARIANTS[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -104,20 +131,21 @@ export function IconButton({ label, variant = 'outline', className = '', childre
 /* ------------------------------------------------------------------ campi */
 
 export const inputClass = (error = false) =>
-  `w-full rounded-xl border bg-zinc-950/70 px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:ring-2 ${
+  `w-full rounded-xl border bg-panel-2 px-3.5 py-2.5 text-sm text-ink placeholder-ink-faint outline-none transition-colors focus:ring-2 ${
     error
-      ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/25'
-      : 'border-zinc-700 focus:border-zinc-500 focus:ring-zinc-500/20'
+      ? 'border-accent/60 focus:border-accent focus:ring-accent/25'
+      : 'border-line-strong focus:border-accent focus:ring-accent/20'
   }`;
 
-export function Field({ label, htmlFor, error, children }) {
+export function Field({ label, htmlFor, error, hint, children }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-zinc-300">
+      <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-ink-soft">
         {label}
       </label>
       {children}
-      {error && <p className="mt-1.5 text-xs font-medium text-red-400">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-ink-mute">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs font-medium text-accent-text">{error}</p>}
     </div>
   );
 }
@@ -131,6 +159,39 @@ export function Badge({ className = '', children }) {
     >
       {children}
     </span>
+  );
+}
+
+/* ------------------------------------------------------- controllo segmentato */
+
+export function SegmentedControl({ options, value, onChange, ariaLabel }) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="inline-flex w-full gap-1 rounded-xl border border-line bg-panel-2 p-1 sm:w-auto"
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.value)}
+            className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-150 sm:flex-none ${
+              active
+                ? 'bg-accent text-on-accent shadow-sm'
+                : 'text-ink-soft hover:bg-panel hover:text-ink'
+            }`}
+          >
+            {option.icon && <option.icon size={16} />}
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -169,16 +230,16 @@ export function Modal({ open, onClose, title, icon: Icon, children, footer }) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="anim-pop relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/60 outline-none sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl"
+        className="anim-pop relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-line bg-panel shadow-2xl shadow-black/50 outline-none sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/95 px-5 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-panel px-5 py-4">
           <div className="flex items-center gap-3">
             {Icon && (
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600/15 text-red-400 ring-1 ring-red-500/25">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent-text ring-1 ring-accent/25">
                 <Icon size={18} />
               </div>
             )}
-            <h2 className="text-base font-semibold text-white">{title}</h2>
+            <h2 className="text-base font-semibold text-ink">{title}</h2>
           </div>
           <IconButton label="Chiudi" variant="ghost" onClick={onClose}>
             <X size={18} />
@@ -186,7 +247,7 @@ export function Modal({ open, onClose, title, icon: Icon, children, footer }) {
         </div>
         <div className="overflow-y-auto px-5 py-5">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-zinc-800 bg-zinc-950/40 px-5 py-4">
+          <div className="flex justify-end gap-2 border-t border-line bg-panel-2 px-5 py-4">
             {footer}
           </div>
         )}
@@ -224,7 +285,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm leading-relaxed text-zinc-400">{message}</p>
+      <p className="text-sm leading-relaxed text-ink-soft">{message}</p>
     </Modal>
   );
 }
@@ -238,7 +299,7 @@ export const TOAST_ICONS = {
 };
 
 export const TOAST_STYLES = {
-  success: 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/30',
-  error: 'text-red-400 bg-red-500/10 ring-red-500/30',
-  info: 'text-sky-400 bg-sky-500/10 ring-sky-500/30',
+  success: 'text-ok bg-ok/10 ring-ok/30',
+  error: 'text-ko bg-ko/10 ring-ko/30',
+  info: 'text-info bg-info/10 ring-info/30',
 };
