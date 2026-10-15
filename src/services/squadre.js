@@ -5,6 +5,7 @@ const STORAGE_KEY = 'squadre';
 const ACTIVE_KEY = 'squadraAttiva';
 const GIOCATORI_KEY = 'giocatori';
 const PARTITE_KEY = 'partite';
+const SCOUT_KEY = 'scout';
 const IMPOSTAZIONI_KEY = 'impostazioni';
 
 /** Identificativo univoco (con fallback dove crypto.randomUUID non esiste). */
@@ -124,51 +125,62 @@ export function salvaSquadra(squadra) {
   return normalized;
 }
 
-/** Numero di giocatori e partite associati a una squadra. */
+/** Numero di giocatori, partite e scout associati a una squadra. */
 export function contaDatiSquadra(id) {
   return {
     giocatori: isList(readJSON(GIOCATORI_KEY, [])).filter((g) => g.squadraId === id).length,
     partite: isList(readJSON(PARTITE_KEY, [])).filter((p) => p.squadraId === id).length,
+    scout: isList(readJSON(SCOUT_KEY, [])).filter((s) => s.squadraId === id).length,
   };
 }
 
 /**
- * Elimina la squadra e tutti i dati associati (rosa e calendario).
+ * Elimina la squadra e tutti i dati associati (rosa, calendario e scout).
  * La squadra attiva passa alla successiva disponibile.
  */
 export function rimuoviSquadra(id) {
   writeJSON(
     STORAGE_KEY,
-    getSquadre().filter((squadra) => squadra.id !== id)
+    getSquadre().filter((squadra) => squadra.id !== id),
   );
   writeJSON(
     GIOCATORI_KEY,
-    isList(readJSON(GIOCATORI_KEY, [])).filter((giocatore) => giocatore.squadraId !== id)
+    isList(readJSON(GIOCATORI_KEY, [])).filter((giocatore) => giocatore.squadraId !== id),
   );
   writeJSON(
     PARTITE_KEY,
-    isList(readJSON(PARTITE_KEY, [])).filter((partita) => partita.squadraId !== id)
+    isList(readJSON(PARTITE_KEY, [])).filter((partita) => partita.squadraId !== id),
+  );
+  writeJSON(
+    SCOUT_KEY,
+    isList(readJSON(SCOUT_KEY, [])).filter((scout) => scout.squadraId !== id),
   );
   writeJSON(ACTIVE_KEY, getSquadraAttiva()?.id ?? null);
   notifica();
 }
 
-/** Assegna alla squadra indicata i giocatori e le partite rimasti senza squadra. */
+/** Assegna alla squadra indicata i giocatori, le partite e gli scout rimasti senza squadra. */
 function assegnaOrfani(squadraId) {
   if (!squadraId) return;
   const giocatori = isList(readJSON(GIOCATORI_KEY, []));
   const partite = isList(readJSON(PARTITE_KEY, []));
+  const scouts = isList(readJSON(SCOUT_KEY, []));
   const orfaniG = giocatori.some((giocatore) => !giocatore.squadraId);
   const orfaniP = partite.some((partita) => !partita.squadraId);
-  if (!orfaniG && !orfaniP) return;
+  const orfaniS = scouts.some((scout) => !scout.squadraId);
+  if (!orfaniG && !orfaniP && !orfaniS) return;
 
   writeJSON(
     GIOCATORI_KEY,
-    giocatori.map((g) => (g.squadraId ? g : { ...g, squadraId }))
+    giocatori.map((g) => (g.squadraId ? g : { ...g, squadraId })),
   );
   writeJSON(
     PARTITE_KEY,
-    partite.map((p) => (p.squadraId ? p : { ...p, squadraId }))
+    partite.map((p) => (p.squadraId ? p : { ...p, squadraId })),
+  );
+  writeJSON(
+    SCOUT_KEY,
+    scouts.map((s) => (s.squadraId ? s : { ...s, squadraId })),
   );
 }
 
@@ -184,8 +196,11 @@ export function migraDati() {
   const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   const giocatori = isList(readJSON(GIOCATORI_KEY, []));
   const partite = isList(readJSON(PARTITE_KEY, []));
+  const scouts = isList(readJSON(SCOUT_KEY, []));
   const haOrfani =
-    giocatori.some((g) => !g.squadraId) || partite.some((p) => !p.squadraId);
+    giocatori.some((g) => !g.squadraId) ||
+    partite.some((p) => !p.squadraId) ||
+    scouts.some((s) => !s.squadraId);
 
   let attiva = getSquadraAttiva();
 
@@ -198,8 +213,7 @@ export function migraDati() {
         fotoUrl: text(source.fotoUrl),
       }
     : null;
-  const haIdentita =
-    identita && Object.values(identita).some((value) => value !== '');
+  const haIdentita = identita && Object.values(identita).some((value) => value !== '');
 
   // Primo avvio con l'identità ancora nelle impostazioni: crea la squadra.
   if (!attiva && haIdentita) {

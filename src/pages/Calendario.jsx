@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Calendar,
   CalendarDays,
+  ClipboardList,
   Clock,
   Download,
   MapPin,
@@ -52,7 +53,7 @@ export default function Calendario() {
     persist(list);
     setFormState(null);
     toast.show(
-      formState.index >= 0 ? 'Partita aggiornata con successo.' : 'Partita aggiunta al calendario.'
+      formState.index >= 0 ? 'Partita aggiornata con successo.' : 'Partita aggiunta al calendario.',
     );
   };
 
@@ -189,11 +190,24 @@ export default function Calendario() {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 gap-1.5 sm:ml-auto">
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:ml-auto">
+                  <ButtonLink
+                    to={`/scout/nuovo/${index}`}
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Scout contro ${partita.avversario}`}
+                  >
+                    <ClipboardList size={14} />
+                    Scout
+                  </ButtonLink>
                   <IconButton label="Modifica" onClick={() => openEdit(partita, index)}>
                     <Pencil size={15} />
                   </IconButton>
-                  <IconButton label="Elimina" variant="danger" onClick={() => setToDelete({ partita, index })}>
+                  <IconButton
+                    label="Elimina"
+                    variant="danger"
+                    onClick={() => setToDelete({ partita, index })}
+                  >
                     <Trash size={15} />
                   </IconButton>
                 </div>

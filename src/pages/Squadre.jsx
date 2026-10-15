@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Pencil, Plus, Shirt, Trash, Users } from 'lucide-react';
+import { CalendarDays, ClipboardList, Pencil, Plus, Shirt, Trash, Users } from 'lucide-react';
 import {
   contaDatiSquadra,
   fotoSquadra,
@@ -42,7 +42,7 @@ export default function Squadre() {
     refresh();
     setFormState(null);
     toast.show(
-      formState.index >= 0 ? 'Squadra aggiornata con successo.' : 'Squadra aggiunta con successo.'
+      formState.index >= 0 ? 'Squadra aggiornata con successo.' : 'Squadra aggiunta con successo.',
     );
   };
 
@@ -136,6 +136,10 @@ export default function Squadre() {
                       <CalendarDays size={12} className="text-accent-text" />
                       {counts.partite} partite
                     </span>
+                    <span className="inline-flex items-center gap-1">
+                      <ClipboardList size={12} className="text-accent-text" />
+                      {counts.scout} scout
+                    </span>
                   </p>
                 </div>
 
@@ -183,9 +187,9 @@ export default function Squadre() {
           toDelete &&
           `Sei sicuro di voler eliminare "${toDelete.squadra.nome}"? Anche i ${
             contaDatiSquadra(toDelete.squadra.id).giocatori
-          } giocatori e le ${
-            contaDatiSquadra(toDelete.squadra.id).partite
-          } partite associate verranno eliminati. L'operazione non può essere annullata.`
+          } giocatori, le ${contaDatiSquadra(toDelete.squadra.id).partite} partite associate e i ${
+            contaDatiSquadra(toDelete.squadra.id).scout
+          } scout verranno eliminati. L'operazione non può essere annullata.`
         }
         confirmLabel="Elimina"
         onConfirm={handleDelete}

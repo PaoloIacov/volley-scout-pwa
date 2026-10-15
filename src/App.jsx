@@ -4,6 +4,8 @@ import Home from './pages/Home.jsx';
 import Squadre from './pages/Squadre.jsx';
 import Squadra from './pages/Squadra.jsx';
 import Calendario from './pages/Calendario.jsx';
+import Scout from './pages/Scout.jsx';
+import ScoutSessione from './pages/ScoutSessione.jsx';
 import Impostazioni from './pages/Impostazioni.jsx';
 import { migraDati } from './services/squadre.js';
 
@@ -20,6 +22,10 @@ export default function App() {
         <Route path="/squadre" element={<Squadre />} />
         <Route path="/squadra" element={<Squadra />} />
         <Route path="/calendario" element={<Calendario />} />
+        <Route path="/scout" element={<Scout />} />
+        <Route path="/scout/nuovo" element={<Scout />} />
+        <Route path="/scout/nuovo/:partitaIndex" element={<Scout />} />
+        <Route path="/scout/:id" element={<ScoutSessione />} />
         <Route path="/impostazioni" element={<Impostazioni />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>

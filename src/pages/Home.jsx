@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import {
   CalendarDays,
   ChevronRight,
+  ClipboardList,
   Clock,
   MapPin,
   Settings,
@@ -90,7 +91,11 @@ export default function Home() {
               {club && <p className="mt-1 text-sm text-zinc-300">{club}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
-              <ButtonLink to="/squadra" variant="primary" size="sm">
+              <ButtonLink to="/scout/nuovo" variant="primary" size="sm">
+                <ClipboardList size={15} />
+                Nuovo scout
+              </ButtonLink>
+              <ButtonLink to="/squadra" variant="outline" size="sm">
                 Vedi la rosa
                 <ChevronRight size={15} />
               </ButtonLink>

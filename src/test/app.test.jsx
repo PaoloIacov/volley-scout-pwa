@@ -25,7 +25,7 @@ function renderAt(path) {
           <App />
         </ToastProvider>
       </SettingsProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -101,7 +101,13 @@ describe('giocatori', () => {
 
     expect(await screen.findByText('Mario Rossi')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('giocatori'))).toEqual([
-      { nome: 'mario', cognome: 'rossi', numeroMaglia: 10, ruolo: 'palleggiatore', squadraId: 's1' },
+      {
+        nome: 'mario',
+        cognome: 'rossi',
+        numeroMaglia: 10,
+        ruolo: 'palleggiatore',
+        squadraId: 's1',
+      },
     ]);
   });
 
@@ -120,8 +126,14 @@ describe('giocatori', () => {
     localStorage.setItem(
       'giocatori',
       JSON.stringify([
-        { nome: 'mario', cognome: 'rossi', numeroMaglia: 10, ruolo: 'palleggiatore', squadraId: 's1' },
-      ])
+        {
+          nome: 'mario',
+          cognome: 'rossi',
+          numeroMaglia: 10,
+          ruolo: 'palleggiatore',
+          squadraId: 's1',
+        },
+      ]),
     );
     localStorage.setItem('squadre', JSON.stringify([SQUADRA, SQUADRA_2]));
     localStorage.setItem('squadraAttiva', JSON.stringify('s2'));
@@ -203,8 +215,14 @@ describe('squadre', () => {
     localStorage.setItem(
       'giocatori',
       JSON.stringify([
-        { nome: 'mario', cognome: 'rossi', numeroMaglia: 10, ruolo: 'palleggiatore', squadraId: 's1' },
-      ])
+        {
+          nome: 'mario',
+          cognome: 'rossi',
+          numeroMaglia: 10,
+          ruolo: 'palleggiatore',
+          squadraId: 's1',
+        },
+      ]),
     );
     localStorage.setItem(
       'partite',
@@ -216,14 +234,32 @@ describe('squadre', () => {
           luogo: 'palestra x',
           squadraId: 's1',
         },
-      ])
+      ]),
+    );
+    localStorage.setItem(
+      'scout',
+      JSON.stringify([
+        {
+          id: 'sc1',
+          squadraId: 's1',
+          data: '2026-01-01',
+          avversario: 'lazio',
+          squadraOsservata: 'propria',
+          setCorrente: 1,
+          sets: [{ n: 1, nostro: 0, loro: 0 }],
+          azioni: [],
+          numeriExtra: [],
+        },
+      ]),
     );
     renderAt('/squadre');
 
     fireEvent.click(screen.getByRole('button', { name: 'Elimina' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Elimina squadra' });
-    expect(within(dialog).getByText(/1 giocatori e le 1 partite/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/1 giocatori, le 1 partite associate e i 1 scout/),
+    ).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Elimina' }));
 
@@ -231,6 +267,7 @@ describe('squadre', () => {
     expect(JSON.parse(localStorage.getItem('squadre'))).toEqual([]);
     expect(JSON.parse(localStorage.getItem('giocatori'))).toEqual([]);
     expect(JSON.parse(localStorage.getItem('partite'))).toEqual([]);
+    expect(JSON.parse(localStorage.getItem('scout'))).toEqual([]);
   });
 });
 
@@ -247,17 +284,19 @@ describe('migrazione dati preesistenti', () => {
         sede: { nome: 'Palestra Collodi' },
         allenamenti: [{ giorno: 'Lunedì', orario: '21:00 - 22:45', luogo: 'Palestra Collodi' }],
         tema: 'scuro',
-      })
+      }),
     );
     localStorage.setItem(
       'giocatori',
-      JSON.stringify([{ nome: 'mario', cognome: 'rossi', numeroMaglia: 10, ruolo: 'palleggiatore' }])
+      JSON.stringify([
+        { nome: 'mario', cognome: 'rossi', numeroMaglia: 10, ruolo: 'palleggiatore' },
+      ]),
     );
     localStorage.setItem(
       'partite',
       JSON.stringify([
         { data: '2026-01-01', orarioInizio: '18:00', avversario: 'lazio', luogo: 'palestra x' },
-      ])
+      ]),
     );
 
     migraDati();
@@ -286,7 +325,7 @@ describe('migrazione dati preesistenti', () => {
     localStorage.clear();
     localStorage.setItem(
       'giocatori',
-      JSON.stringify([{ nome: 'luca', cognome: 'neri', numeroMaglia: 5, ruolo: 'centrale' }])
+      JSON.stringify([{ nome: 'luca', cognome: 'neri', numeroMaglia: 5, ruolo: 'centrale' }]),
     );
 
     renderAt('/squadre');
@@ -298,5 +337,210 @@ describe('migrazione dati preesistenti', () => {
     const squadre = JSON.parse(localStorage.getItem('squadre'));
     expect(squadre).toHaveLength(1);
     expect(JSON.parse(localStorage.getItem('giocatori'))[0].squadraId).toBe(squadre[0].id);
+  });
+});
+
+function seedScout(overrides = {}) {
+  localStorage.setItem(
+    'scout',
+    JSON.stringify([
+      {
+        id: 'sc1',
+        squadraId: 's1',
+        data: '2026-12-01',
+        orarioInizio: '18:00',
+        avversario: 'Volley Beta',
+        luogo: 'Palestra X',
+        squadraOsservata: 'propria',
+        setCorrente: 1,
+        sets: [{ n: 1, nostro: 0, loro: 0 }],
+        azioni: [],
+        numeriExtra: [],
+        aggiornato: 1,
+        ...overrides,
+      },
+    ]),
+  );
+}
+
+function seedRosa() {
+  localStorage.setItem(
+    'giocatori',
+    JSON.stringify([
+      {
+        nome: 'mario',
+        cognome: 'rossi',
+        numeroMaglia: 10,
+        ruolo: 'palleggiatore',
+        squadraId: 's1',
+      },
+    ]),
+  );
+}
+
+describe('scout', () => {
+  it('crea un nuovo scout dalla home e apre la schermata di scouting', async () => {
+    renderAt('/home');
+    fireEvent.click(screen.getByRole('link', { name: /Nuovo scout/ }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Nuovo scout' });
+    expect(within(dialog).getByLabelText('Data *').value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    fill('Avversario *', 'Volley Team');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Inizia lo scout' }));
+
+    expect(await screen.findByRole('heading', { name: /vs Volley Team/ })).toBeInTheDocument();
+    const scout = JSON.parse(localStorage.getItem('scout'));
+    expect(scout).toHaveLength(1);
+    expect(scout[0]).toMatchObject({
+      squadraId: 's1',
+      avversario: 'Volley Team',
+      squadraOsservata: 'propria',
+      setCorrente: 1,
+    });
+    expect(scout[0].sets).toEqual([{ n: 1, nostro: 0, loro: 0 }]);
+  });
+
+  it('precompila il form arrivando dal pulsante del calendario', async () => {
+    localStorage.setItem(
+      'partite',
+      JSON.stringify([
+        {
+          data: '2026-12-01',
+          orarioInizio: '18:00',
+          avversario: 'volley beta',
+          luogo: 'palestra x',
+          squadraId: 's1',
+        },
+      ]),
+    );
+    renderAt('/calendario');
+    fireEvent.click(screen.getByRole('link', { name: 'Scout contro Volley Beta' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Nuovo scout' });
+    expect(within(dialog).getByLabelText('Data *')).toHaveValue('2026-12-01');
+    expect(within(dialog).getByLabelText('Orario')).toHaveValue('18:00');
+    expect(within(dialog).getByLabelText('Avversario *')).toHaveValue('Volley Beta');
+    expect(within(dialog).getByLabelText('Luogo')).toHaveValue('Palestra X');
+
+    // Si può scegliere di scoutizzare la squadra avversaria.
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Volley Beta' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Inizia lo scout' }));
+
+    expect(await screen.findByRole('heading', { name: /vs Volley Beta/ })).toBeInTheDocument();
+    const scout = JSON.parse(localStorage.getItem('scout'));
+    expect(scout[0].squadraOsservata).toBe('avversaria');
+    expect(scout[0]).toMatchObject({ data: '2026-12-01', luogo: 'Palestra X' });
+  });
+
+  it('registra un dato con giocatore, azione ed esito e lo salva subito', () => {
+    seedScout();
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Attacco' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Esito errore' }));
+
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(1);
+    expect(scout.azioni[0]).toMatchObject({
+      numero: 10,
+      azione: 'attacco',
+      esito: '=',
+      set: 1,
+    });
+    expect(screen.getByText('1 azione')).toBeInTheDocument();
+
+    // Annulla ultimo: il dato sparisce anche dallo storage.
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla ultimo' }));
+    expect(JSON.parse(localStorage.getItem('scout'))[0].azioni).toHaveLength(0);
+  });
+
+  it('modifica il punteggio con i tasti +/- e scrivendo il numero', () => {
+    seedScout();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi punto a Noi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi punto a Noi' }));
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Togli punto a Noi' }));
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(1);
+
+    fireEvent.change(screen.getByLabelText('Punteggio nostro'), { target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('Punteggio avversario'), {
+      target: { value: '23' },
+    });
+    const sets = JSON.parse(localStorage.getItem('scout'))[0].sets;
+    expect(sets[0]).toEqual({ n: 1, nostro: 25, loro: 23 });
+  });
+
+  it('gestisce i set: aggiunta e selezione', () => {
+    seedScout();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi set' }));
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets).toHaveLength(2);
+    expect(scout.setCorrente).toBe(2);
+    expect(screen.getByLabelText('Set 2')).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set 1' }));
+    expect(JSON.parse(localStorage.getItem('scout'))[0].setCorrente).toBe(1);
+  });
+
+  it('mostra il riepilogo per giocatore nella tab dedicata', () => {
+    seedScout({
+      azioni: [
+        { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '=' },
+        { id: 'a2', ts: 2, set: 1, numero: 10, azione: 'attacco', esito: '#' },
+        { id: 'a3', ts: 3, set: 1, numero: 10, azione: 'muro', esito: '+' },
+      ],
+    });
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+
+    const table = screen.getByRole('table');
+    const riga = within(table)
+      .getAllByRole('row')
+      .find((row) => within(row).queryByText('Mario Rossi'));
+    expect(riga).toBeDefined();
+    expect(within(riga).getByText('2')).toBeInTheDocument(); // attacchi
+    expect(within(riga).getByText('1')).toBeInTheDocument(); // muri
+    expect(within(riga).getByText('3')).toBeInTheDocument(); // totale riga
+    expect(screen.getByText('Legenda:')).toBeInTheDocument();
+  });
+
+  it('esce e rientra dalla schermata senza perdere i dati', () => {
+    seedScout();
+    seedRosa();
+    const { unmount } = renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ricezione' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Esito positiva' }));
+    unmount();
+
+    renderAt('/scout/sc1');
+    expect(screen.getByText('1 azione')).toBeInTheDocument();
+    expect(screen.getAllByText('N. 10').length).toBeGreaterThan(0);
+    expect(JSON.parse(localStorage.getItem('scout'))[0].azioni).toHaveLength(1);
+  });
+
+  it('elenca gli scout e consente di eliminarli con conferma', async () => {
+    seedScout();
+    renderAt('/scout');
+
+    expect(screen.getByRole('heading', { name: 'Scout' })).toBeInTheDocument();
+    expect(screen.getByText('vs Volley Beta')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina' }));
+    const dialog = screen.getByRole('dialog', { name: 'Elimina scout' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Elimina' }));
+
+    expect(await screen.findByText('Nessuno scout ancora')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('scout'))).toEqual([]);
   });
 });

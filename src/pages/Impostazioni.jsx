@@ -22,6 +22,7 @@ import {
 } from '../components/ui.jsx';
 import { getTuttiGiocatori, setTuttiGiocatori } from '../services/giocatori.js';
 import { getTuttePartite, setTuttePartite } from '../services/calendario.js';
+import { getTuttiScout, setTuttiScout } from '../services/scout.js';
 import {
   getSquadra,
   getSquadraAttiva,
@@ -49,15 +50,16 @@ export default function Impostazioni() {
   const handleExport = () => {
     downloadJSON(
       {
-        version: 2,
+        version: 3,
         esportatoIl: new Date().toISOString(),
         squadre: getSquadre(),
         squadraAttiva: getSquadraAttiva()?.id ?? null,
         giocatori: getTuttiGiocatori(),
         partite: getTuttePartite(),
+        scout: getTuttiScout(),
         impostazioni: settings,
       },
-      `backup_volley_scout_${new Date().toISOString().split('T')[0]}.json`
+      `backup_volley_scout_${new Date().toISOString().split('T')[0]}.json`,
     );
     toast.show('Backup completo esportato in JSON.');
   };
@@ -85,6 +87,7 @@ export default function Impostazioni() {
       }
       if (Array.isArray(data.giocatori)) payload.giocatori = data.giocatori;
       if (Array.isArray(data.partite)) payload.partite = data.partite;
+      if (Array.isArray(data.scout)) payload.scout = data.scout;
       if (data.impostazioni && typeof data.impostazioni === 'object') {
         payload.impostazioni = data.impostazioni;
       }
@@ -104,7 +107,12 @@ export default function Impostazioni() {
     if (payload.squadre) setSquadre(payload.squadre);
 
     // Backup preesistente: identità salvata nelle impostazioni, nessuna squadra.
-    if (!payload.squadre && !getSquadre().length && identita && (identita.squadra || identita.club)) {
+    if (
+      !payload.squadre &&
+      !getSquadre().length &&
+      identita &&
+      (identita.squadra || identita.club)
+    ) {
       salvaSquadra({
         nome: identita.squadra ?? '',
         club: identita.club ?? '',
@@ -122,11 +130,12 @@ export default function Impostazioni() {
     const attivaId = getSquadraAttiva()?.id ?? null;
     const collega = (lista) =>
       lista.map((voce) =>
-        voce && (voce.squadraId || !attivaId) ? voce : { ...voce, squadraId: attivaId }
+        voce && (voce.squadraId || !attivaId) ? voce : { ...voce, squadraId: attivaId },
       );
 
     if (payload.giocatori) setTuttiGiocatori(collega(payload.giocatori));
     if (payload.partite) setTuttePartite(collega(payload.partite));
+    if (payload.scout) setTuttiScout(collega(payload.scout));
     if (identita) replace(identita); // nelle impostazioni resta il tema
 
     setPendingBackup(null);
@@ -144,6 +153,7 @@ export default function Impostazioni() {
     if (pendingBackup?.squadre) parts.push(`${pendingBackup.squadre.length} squadre`);
     if (pendingBackup?.giocatori) parts.push(`${pendingBackup.giocatori.length} giocatori`);
     if (pendingBackup?.partite) parts.push(`${pendingBackup.partite.length} partite`);
+    if (pendingBackup?.scout) parts.push(`${pendingBackup.scout.length} scout`);
     if (pendingBackup?.impostazioni) parts.push('il tema');
     return `Vuoi sovrascrivere i dati attuali con il contenuto del file (${parts.join(', ')})? L'operazione non può essere annullata.`;
   };
@@ -183,7 +193,7 @@ export default function Impostazioni() {
       <Section
         icon={Database}
         title="Dati e backup"
-        subtitle="Squadre, rosa, calendario e tema in un unico file"
+        subtitle="Squadre, rosa, calendario, scout e tema in un unico file"
       >
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleExport}>
@@ -200,9 +210,9 @@ export default function Impostazioni() {
           </Button>
         </div>
         <p className="mt-3 text-xs text-ink-mute">
-          L'export include le squadre, la rosa, il calendario e il tema: conservalo per spostare i
-          dati su un altro dispositivo. Nome, foto e stagione delle squadre si modificano dalla
-          pagina Squadre.
+          L'export include le squadre, la rosa, il calendario, gli scout e il tema: conservalo per
+          spostare i dati su un altro dispositivo. Nome, foto e stagione delle squadre si modificano
+          dalla pagina Squadre.
         </p>
       </Section>
 

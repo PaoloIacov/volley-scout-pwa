@@ -1,7 +1,7 @@
 # Volley Scout PWA
 
 Applicazione PWA per la gestione di **una o più squadre di pallavolo**: rosa dei
-giocatori, calendario partite e statistiche.
+giocatori, calendario partite, scout delle gare e statistiche.
 
 Riscritta completamente in **React** (Vite + Tailwind CSS v4), con interfaccia
 moderna, uniforme e responsive (tab bar dedicata su mobile), tema chiaro/scuro
@@ -27,8 +27,16 @@ e design system a token condivisi.
   validazione dei campi, import/export JSON
 - **Calendario**: CRUD partite (data, orario, avversario, luogo),
   ordinamento per data, evidenziazione delle gare passate, import/export JSON
+- **Scout**: rilevamento statistico delle partite, creato dalla Home o dal
+  pulsante su ogni partita del calendario (dati precompilati) con scelta della
+  squadra da scoutizzare; schermata touch friendly con punteggio di set sempre
+  visibile e modificabile (+/- o a tastiera), inserimento rapido
+  giocatore → azione (ricezione, attacco, difesa, muro, battuta) → esito
+  (# perfetta, + positiva, - negativa, = errore), annulla ultimo, set multipli
+  e tab riepilogo per giocatore; i dati vengono salvati a ogni tocco, si può
+  uscire e rientrare senza perdere nulla
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
-  (squadre + rosa + calendario) in un unico file JSON, ripristino del tema
+  (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)
 
 ## Sviluppo

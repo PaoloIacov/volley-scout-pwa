@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   CalendarDays,
+  ClipboardList,
   House,
   Monitor,
   Moon,
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { to: '/squadre', label: 'Squadre', icon: Shirt },
   { to: '/squadra', label: 'Rosa', icon: Users },
   { to: '/calendario', label: 'Calendario', icon: CalendarDays },
+  { to: '/scout', label: 'Scout', icon: ClipboardList },
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings },
 ];
 
@@ -39,7 +41,10 @@ function navClasses(isActive) {
 
 /** Bottone che cicla scuro → chiaro → sistema. */
 function ThemeToggle({ tema, onChange }) {
-  const index = Math.max(0, TEME_CICLO.findIndex((item) => item.tema === tema));
+  const index = Math.max(
+    0,
+    TEME_CICLO.findIndex((item) => item.tema === tema),
+  );
   const current = TEME_CICLO[index];
   const next = TEME_CICLO[(index + 1) % TEME_CICLO.length];
   const Icon = current.icon;
@@ -105,7 +110,7 @@ export default function Layout() {
 
       {/* Tab bar mobile */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-panel/90 pb-safe backdrop-blur-lg lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 py-2">
+        <div className="mx-auto grid max-w-md grid-cols-6 gap-1 px-2 py-2">
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
