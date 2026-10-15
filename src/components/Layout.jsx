@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   CalendarDays,
   ClipboardList,
@@ -63,6 +63,11 @@ function ThemeToggle({ tema, onChange }) {
 export default function Layout() {
   const { settings, update } = useSettings();
   const squadra = useSquadraAttiva();
+  const { pathname } = useLocation();
+  // La schermata di scouting (non l'elenco o il form) usa tutta la larghezza:
+  // su desktop e tablet il rilievo dati ha bisogno di ogni pixel.
+  const inScouting = /^\/scout\/(?!nuovo)/.test(pathname);
+  const larghezza = inScouting ? 'max-w-none' : 'max-w-5xl';
   const titolo = squadra?.club || squadra?.nome || 'Volley Scout';
   const sottotitolo = squadra
     ? [squadra.nome !== titolo ? squadra.nome : null, squadra.stagione].filter(Boolean).join(' · ')
@@ -71,7 +76,9 @@ export default function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-line bg-panel/85 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div
+          className={`mx-auto flex h-16 w-full ${larghezza} items-center justify-between gap-3 px-4 sm:px-6`}
+        >
           <NavLink to="/home" className="flex min-w-0 flex-1 items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-on-accent shadow-lg shadow-accent/30">
               <Volleyball size={22} strokeWidth={2} />
@@ -99,7 +106,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-10 sm:px-6">
+      <main className={`mx-auto w-full ${larghezza} flex-1 px-4 pt-6 pb-10 sm:px-6`}>
         <Outlet />
       </main>
 
