@@ -38,14 +38,42 @@ export function isAzione(value) {
   return AZIONI.some((azione) => azione.id === value);
 }
 
+/** Limite dei convocati: 12 di movimento più fino a 2 liberi. */
+export const MAX_MOVIMENTO = 12;
+export const MAX_LIBERI = 2;
+export const MAX_CONVOCATI = MAX_MOVIMENTO + MAX_LIBERI;
+
+/** True se il giocatore è di ruolo libero (il ruolo è case-insensitive). */
+export function isLibero(giocatore) {
+  return (
+    String(giocatore?.ruolo ?? '')
+      .trim()
+      .toLowerCase() === 'libero'
+  );
+}
+
+/** Numero di errori generici registrati (fuori dalle statistiche dei giocatori). */
+export function contaGenerici(scout) {
+  return Array.isArray(scout?.generici) ? scout.generici.length : 0;
+}
+
+/** Errori generici raggruppati per set: `[{ set, n }]` ordinati per set. */
+export function genericiPerSet(scout) {
+  const conteggi = new Map();
+  (Array.isArray(scout?.generici) ? scout.generici : []).forEach((generico) => {
+    const set = Math.max(1, Number(generico?.set) || 1);
+    conteggi.set(set, (conteggi.get(set) ?? 0) + 1);
+  });
+  return [...conteggi.entries()].sort((a, b) => a[0] - b[0]).map(([set, n]) => ({ set, n }));
+}
+
 function cellaVuota() {
   return { tot: 0, '#': 0, '+': 0, '-': 0, '=': 0 };
 }
 
 /**
- * Riepilogo parziale dello scout: una riga per ogni giocatore della squadra
- * scoutizzata (più ogni numero avversario che ha registrato azioni), con i
- * conteggi per azione ed esito.
+ * Riepilogo parziale dello scout: una riga per ogni convocato della squadra
+ * (più ogni numero che ha registrato azioni), con i conteggi per azione ed esito.
  *
  * @param {object} scout record scout
  * @param {Array} giocatori rosa della squadra che possiede lo scout
@@ -61,9 +89,20 @@ export function costruisciRiepilogo(scout, giocatori) {
     ]),
   );
 
-  // Chi compare: la rosa (se scoutizziamo le nostre ragazze) + i numeri con azioni.
+  // Chi compare: la rosa convocata (se scoutizziamo la nostra squadra)
+  // + ogni numero che ha registrato azioni.
   const numeri = new Set();
-  if (osservaRosa) rosa.forEach((giocatore) => numeri.add(giocatore.numeroMaglia));
+  if (osservaRosa) {
+    const convocati =
+      Array.isArray(scout.convocati) && scout.convocati.length > 0
+        ? new Set(scout.convocati)
+        : null;
+    rosa.forEach((giocatore) => {
+      if (!convocati || convocati.has(giocatore.numeroMaglia)) {
+        numeri.add(giocatore.numeroMaglia);
+      }
+    });
+  }
   scout.azioni.forEach((azione) => numeri.add(azione.numero));
 
   const righe = [...numeri]

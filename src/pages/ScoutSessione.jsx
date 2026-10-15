@@ -64,10 +64,54 @@ export default function ScoutSessione() {
       azioni: [...scout.azioni, { ts: Date.now(), set: scout.setCorrente, numero, azione, esito }],
     });
 
-  const annullaUltimo = () => aggiorna({ ...scout, azioni: scout.azioni.slice(0, -1) });
+  /**
+   * Errore generico: dà un punto all'avversario e registra la statistica
+   * senza associarla ad alcun giocatore.
+   */
+  const registraErroreGenerico = () =>
+    aggiorna({
+      ...scout,
+      generici: [...(scout.generici ?? []), { ts: Date.now(), set: scout.setCorrente }],
+      sets: scout.sets.map((set) =>
+        set.n === scout.setCorrente ? { ...set, loro: Math.min(set.loro + 1, 999) } : set,
+      ),
+    });
+
+  /** Rimuove l'ultimo dato inserito (azione o errore generico). */
+  const annullaUltimo = () => {
+    const ultimaAzione = scout.azioni[scout.azioni.length - 1] ?? null;
+    const ultimoGenerico = scout.generici?.[scout.generici.length - 1] ?? null;
+    const genericoUltimo = ultimoGenerico && (!ultimaAzione || ultimoGenerico.ts > ultimaAzione.ts);
+    if (!ultimaAzione && !ultimoGenerico) return;
+    if (genericoUltimo) {
+      // L'errore generico aveva aggiunto un punto: lo si toglie insieme.
+      aggiorna({
+        ...scout,
+        generici: scout.generici.filter((voce) => voce.id !== ultimoGenerico.id),
+        sets: scout.sets.map((set) =>
+          set.n === ultimoGenerico.set ? { ...set, loro: Math.max(0, set.loro - 1) } : set,
+        ),
+      });
+      return;
+    }
+    aggiorna({ ...scout, azioni: scout.azioni.slice(0, -1) });
+  };
 
   const rimuoviAzione = (azioneId) =>
     aggiorna({ ...scout, azioni: scout.azioni.filter((azione) => azione.id !== azioneId) });
+
+  /** Toglie un errore generico dall'elenco, riportando indietro il punto. */
+  const rimuoviGenerico = (genericoId) => {
+    const generico = (scout.generici ?? []).find((voce) => voce.id === genericoId);
+    if (!generico) return;
+    aggiorna({
+      ...scout,
+      generici: scout.generici.filter((voce) => voce.id !== genericoId),
+      sets: scout.sets.map((set) =>
+        set.n === generico.set ? { ...set, loro: Math.max(0, set.loro - 1) } : set,
+      ),
+    });
+  };
 
   const aggiungiNumero = (numero) =>
     aggiorna({ ...scout, numeriExtra: [...scout.numeriExtra, numero] });
@@ -109,6 +153,7 @@ export default function ScoutSessione() {
         onDeltaPunteggio={deltaPunteggio}
         onSelezionaSet={selezionaSet}
         onAggiungiSet={aggiungiSet}
+        onErroreGenerico={registraErroreGenerico}
       />
 
       <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
@@ -124,6 +169,7 @@ export default function ScoutSessione() {
           onRegistra={registra}
           onAnnullaUltimo={annullaUltimo}
           onRimuoviAzione={rimuoviAzione}
+          onRimuoviGenerico={rimuoviGenerico}
           onAggiungiNumero={aggiungiNumero}
         />
       ) : (

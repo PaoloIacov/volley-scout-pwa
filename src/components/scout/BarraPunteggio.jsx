@@ -18,6 +18,7 @@ export default function BarraPunteggio({
   onDeltaPunteggio,
   onSelezionaSet,
   onAggiungiSet,
+  onErroreGenerico,
 }) {
   const setAttivo = scout.sets.find((set) => set.n === scout.setCorrente) ?? scout.sets[0];
   const piuSet = scout.sets.length < SET_MASSIMO;
@@ -68,44 +69,56 @@ export default function BarraPunteggio({
           </IconButton>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:w-[460px] xl:w-[520px]">
-          {squadre.map(({ campo, label, aria }) => (
-            <div key={campo} className="rounded-2xl border border-line bg-panel-2 p-2.5">
-              <p className="mb-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
-                {label}
-              </p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-label={`Togli punto a ${label}`}
-                  onClick={() => onDeltaPunteggio(setAttivo.n, campo, -1)}
-                  className="flex h-12 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-panel text-xl font-bold text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={0}
-                  max={999}
-                  inputMode="numeric"
-                  aria-label={`Punteggio ${aria}`}
-                  className="h-12 w-full min-w-0 rounded-xl border border-line-strong bg-panel text-center text-2xl font-bold text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  value={setAttivo[campo]}
-                  onChange={(e) =>
-                    onCambiaPunteggio(setAttivo.n, campo, clampPunteggio(e.target.value))
-                  }
-                />
-                <button
-                  type="button"
-                  aria-label={`Aggiungi punto a ${label}`}
-                  onClick={() => onDeltaPunteggio(setAttivo.n, campo, 1)}
-                  className="flex h-12 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-panel text-xl font-bold text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
-                >
-                  +
-                </button>
+        <div className="lg:w-[460px] xl:w-[520px]">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {squadre.map(({ campo, label, aria }) => (
+              <div key={campo} className="rounded-2xl border border-line bg-panel-2 p-2.5">
+                <p className="mb-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
+                  {label}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label={`Togli punto a ${label}`}
+                    onClick={() => onDeltaPunteggio(setAttivo.n, campo, -1)}
+                    className="flex h-12 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-panel text-xl font-bold text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    max={999}
+                    inputMode="numeric"
+                    aria-label={`Punteggio ${aria}`}
+                    className="h-12 w-full min-w-0 rounded-xl border border-line-strong bg-panel text-center text-2xl font-bold text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    value={setAttivo[campo]}
+                    onChange={(e) =>
+                      onCambiaPunteggio(setAttivo.n, campo, clampPunteggio(e.target.value))
+                    }
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Aggiungi punto a ${label}`}
+                    onClick={() => onDeltaPunteggio(setAttivo.n, campo, 1)}
+                    className="flex h-12 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-panel text-xl font-bold text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <button
+            type="button"
+            aria-label="Errore generico"
+            title="Dà un punto all'avversario e registra un errore generico, senza toccare le statistiche dei giocatori"
+            onClick={onErroreGenerico}
+            className="mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-ko/45 bg-ko/10 text-sm font-semibold text-ko transition-colors duration-150 hover:bg-ko/15"
+          >
+            Errore generico
+            <span className="text-xs font-medium opacity-70">+1 Loro</span>
+          </button>
         </div>
       </div>
     </Card>

@@ -29,15 +29,19 @@ e design system a token condivisi.
   ordinamento per data, evidenziazione delle gare passate, import/export JSON
 - **Scout**: rilevamento statistico delle partite, creato dalla Home o dal
   pulsante su ogni partita del calendario (dati precompilati) con scelta della
-  squadra da scoutizzare; schermata touch friendly con punteggio di set sempre
+  squadra da scoutizzare e dei convocati (max 14: 12 di movimento + 2 liberi,
+  13 con un solo libero); schermata touch friendly con punteggio di set sempre
   visibile e modificabile (+/- o a tastiera), inserimento rapido
   giocatore → azione (ricezione, attacco, difesa, muro, battuta) → esito
-  (# perfetta, + positiva, - negativa, = errore), annulla ultimo, set multipli
-  e tab riepilogo per giocatore; i dati vengono salvati a ogni tocco, si può
-  uscire e rientrare senza perdere nulla. Dal tab Riepilogo si esporta il
-  riepilogo sintetico (info partita, punteggi dei set e tabella per giocatore)
-  in Excel (.xlsx) o PDF: le librerie di export vengono caricate solo al
-  momento del download
+  (# perfetta, + positiva, - negativa, = errore), tasto "Errore generico" che
+  dà un punto all'avversario e viene contato a parte, senza toccare le
+  statistiche dei giocatori, annulla ultimo, set multipli e tab riepilogo per
+  giocatore; i liberi hanno card riconoscibili e non registrano battuta né
+  muro; i dati vengono salvati a ogni tocco, si può uscire e rientrare senza
+  perdere nulla. Dal tab Riepilogo si esporta il riepilogo sintetico (info
+  partita, punteggi dei set, tabella per giocatore ed errori generici) in
+  Excel (.xlsx) o PDF: le librerie di export vengono caricate solo al momento
+  del download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
   (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)

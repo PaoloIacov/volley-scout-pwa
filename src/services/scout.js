@@ -46,6 +46,23 @@ function normalizeSet(voce, indice) {
   };
 }
 
+/** Errore generico: punto all'avversario senza giocatore associato. */
+function normalizeGenerico(voce) {
+  if (!voce) return null;
+  return {
+    id: voce.id ? String(voce.id) : newId(),
+    ts: Number(voce.ts) || Date.now(),
+    set: Math.max(1, Number(voce.set) || 1),
+  };
+}
+
+/** Numeri convocati: assenti o vuoti = tutta la rosa. */
+function normalizeConvocati(value) {
+  if (!Array.isArray(value)) return undefined;
+  const numeri = [...new Set(value.map((n) => num(n)).filter((n) => n > 0))];
+  return numeri.length > 0 ? numeri : undefined;
+}
+
 /** Normalizza il record scout prima del salvataggio. */
 function normalizeScout(scout) {
   const sets = isList(scout?.sets).map(normalizeSet);
@@ -59,9 +76,13 @@ function normalizeScout(scout) {
     luogo: String(scout?.luogo ?? '').trim(),
     /** Quale delle due squadre si sta osservando. */
     squadraOsservata: scout?.squadraOsservata === 'avversaria' ? 'avversaria' : 'propria',
+    /** Numeri convocati alla gara (undefined = tutta la rosa). */
+    convocati: normalizeConvocati(scout?.convocati),
     setCorrente: Math.max(1, Number(scout?.setCorrente) || 1),
     sets: sets.length > 0 ? sets : [normalizeSet(null, 0)],
     azioni: isList(scout?.azioni).map(normalizeAzione).filter(Boolean),
+    /** Errori generici: punto avversario senza giocatore. */
+    generici: isList(scout?.generici).map(normalizeGenerico).filter(Boolean),
     /** Numeri aggiunti manualmente oltre alla rosa. */
     numeriExtra: [
       ...new Set(
@@ -95,7 +116,7 @@ export function getScout(id) {
 
 /** Crea e salva un nuovo scout, restituendo il record pronto. */
 export function creaScout(dati) {
-  const scout = normalizeScout({ ...dati, id: undefined, azioni: [], sets: null });
+  const scout = normalizeScout({ ...dati, id: undefined, azioni: [], generici: [], sets: null });
   const list = tutti();
   list.push(scout);
   writeJSON(STORAGE_KEY, list);

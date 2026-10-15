@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { ClipboardList, FileDown, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '../Toast.jsx';
 import { Button, Card } from '../ui.jsx';
-import { AZIONI, ESITI, ESITO_CLASSI, costruisciRiepilogo } from '../../lib/scout-stats.js';
+import {
+  AZIONI,
+  ESITI,
+  ESITO_CLASSI,
+  costruisciRiepilogo,
+  contaGenerici,
+  genericiPerSet,
+} from '../../lib/scout-stats.js';
 import { esportaScoutExcel, esportaScoutPdf } from '../../lib/export-scout.js';
 
 /** Cella della tabella: totale + conteggi per esito (solo i diversi da zero). */
@@ -40,6 +47,8 @@ export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
   const [esportando, setEsportando] = useState('');
   const { righe, totali } = costruisciRiepilogo(scout, giocatori);
   const totaleGenerale = AZIONI.reduce((somma, azione) => somma + totali[azione.id].tot, 0);
+  const generici = genericiPerSet(scout);
+  const totGenerici = contaGenerici(scout);
 
   /** Genera e scarica il file: il formato resta attivo mentre si lavora. */
   const esporta = async (formato) => {
@@ -60,7 +69,7 @@ export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
     }
   };
 
-  if (righe.length === 0) {
+  if (righe.length === 0 && totGenerici === 0) {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-panel-2 text-ink-soft ring-1 ring-line">
@@ -152,6 +161,19 @@ export default function Riepilogo({ scout, giocatori, squadraNome = '' }) {
             </tfoot>
           </table>
         </div>
+
+        <p className="border-t border-line px-4 py-3 text-xs">
+          <span className="font-semibold uppercase tracking-wider text-ink-mute">
+            Errori generici:
+          </span>{' '}
+          <span className="font-bold text-ink tabular-nums">{totGenerici}</span>
+          {generici.map((voce) => (
+            <span key={voce.set} className="text-ink-mute">
+              {' · set '}
+              {voce.set}: {voce.n}
+            </span>
+          ))}
+        </p>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-4 py-3 text-xs text-ink-mute">
           <span className="font-semibold uppercase tracking-wider">Legenda:</span>

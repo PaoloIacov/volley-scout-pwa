@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Calendar, ClipboardList, Clock, MapPin, Plus, Trash } from 'lucide-react';
 import { creaScout, eliminaScout, getScoutList } from '../services/scout.js';
 import { getPartite } from '../services/calendario.js';
+import { getGiocatori } from '../services/giocatori.js';
 import { useSquadraAttiva } from '../hooks/useSquadre.js';
 import { dayMonth, shortDate } from '../lib/dates.js';
 import { useToast } from '../components/Toast.jsx';
@@ -172,6 +173,7 @@ export default function Scout() {
           open
           prefill={prefill}
           squadra={squadra}
+          giocatori={getGiocatori(squadra.id)}
           onCancel={chiudiForm}
           onSave={handleSave}
         />
