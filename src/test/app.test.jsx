@@ -851,6 +851,38 @@ describe('scout', () => {
     expect(screen.getByRole('button', { name: 'Muro' })).toBeEnabled();
   });
 
+  /** Trascinamento reale: pressione, movimento oltre la soglia e rilascio sulla zona. */
+  function trascina(card, zona) {
+    fireEvent.pointerDown(card, { clientX: 30, clientY: 30 });
+    fireEvent.pointerMove(card, { clientX: 130, clientY: 90 });
+    fireEvent.pointerUp(zona, { clientX: 130, clientY: 90 });
+  }
+
+  it('muove i giocatori tra campo e panchina solo con il toggle Sostituzioni attivo', () => {
+    seedScout();
+    seedRosaEstesa();
+    renderAt('/scout/sc1');
+
+    const toggle = screen.getByRole('switch', { name: 'Sostituzioni' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    const zonaCampo = document.querySelector('[data-drop-zone="campo"]');
+    const zonaPanchina = document.querySelector('[data-drop-zone="panchina"]');
+
+    // Toggle spento: il tocco non sposta nessuno, resta solo la selezione.
+    trascina(within(zonaCampo).getByRole('button', { name: 'Giocatore 10' }), zonaPanchina);
+    expect(within(zonaCampo).getByRole('button', { name: 'Giocatore 10' })).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).toBeUndefined();
+
+    // Toggle acceso: la card passa in panchina e lo spostamento viene salvato.
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    trascina(within(zonaCampo).getByRole('button', { name: 'Giocatore 10' }), zonaPanchina);
+    expect(
+      within(zonaPanchina).getByRole('button', { name: 'Giocatore 10 in panchina' }),
+    ).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).not.toContain(10);
+  });
+
   it('elenca gli scout e consente di eliminarli con conferma', async () => {
     seedScout();
     renderAt('/scout');

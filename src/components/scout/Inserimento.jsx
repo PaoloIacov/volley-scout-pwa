@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { ArrowLeftRight, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useToast } from '../Toast.jsx';
 import { Button, Card } from '../ui.jsx';
@@ -13,8 +13,10 @@ const GIOCATORE_OFF = 'border-line-strong bg-panel-2 text-ink hover:border-ink-f
 /** Tonalità leggermente diversa: i liberi si riconoscono a colpo d'occhio. */
 const GIOCATORE_LIBERO = 'border-info/45 bg-info/10 text-ink hover:border-info/70';
 const GIOCATORE_ON = 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25';
-const GIOCATORE_PANCHINA =
-  'cursor-not-allowed border-line bg-panel text-ink-faint opacity-55';
+const GIOCATORE_PANCHINA = 'cursor-not-allowed border-line bg-panel text-ink-faint opacity-55';
+
+/** Distanza in px oltre la quale un tocco diventa un trascinamento. */
+const SOGLIA_TRASCINAMENTO = 6;
 
 const BTN_AZIONE =
   'h-11 cursor-pointer rounded-xl border px-1 text-xs font-semibold transition-colors duration-150 sm:h-14 sm:px-2 sm:text-sm';
@@ -64,9 +66,9 @@ export default function Inserimento({
     ...movimento.slice(0, 6),
     ...numeri.filter((numero) => liberi.has(numero)).slice(0, 1),
   ];
-  const configuratiInCampo = [...new Set(
-    (scout.inCampo ?? defaultInCampo).filter((numero) => numeriDisponibili.has(numero)),
-  )];
+  const configuratiInCampo = [
+    ...new Set((scout.inCampo ?? defaultInCampo).filter((numero) => numeriDisponibili.has(numero))),
+  ];
   const inCampo = osservaRosa
     ? [
         ...configuratiInCampo.filter((numero) => !liberi.has(numero)).slice(0, 6),
@@ -77,6 +79,12 @@ export default function Inserimento({
   const [numeroTrascinato, setNumeroTrascinato] = useState(null);
   const [posizioneTrascinamento, setPosizioneTrascinamento] = useState(null);
   const trascinatoRef = useRef(false);
+  const origineTrascinamentoRef = useRef(null);
+  /**
+   * Toggle "Sostituzioni": finché è spento i giocatori restano al loro posto,
+   * così il tocco serve solo a selezionarli e non si confonde col trascinamento.
+   */
+  const [sostituzioni, setSostituzioni] = useState(false);
 
   useEffect(() => {
     if (numeroTrascinato === null) return undefined;
@@ -91,6 +99,7 @@ export default function Inserimento({
       }
       setNumeroTrascinato(null);
       setPosizioneTrascinamento(null);
+      origineTrascinamentoRef.current = null;
     };
 
     document.addEventListener('pointermove', aggiornaPosizione);
@@ -168,9 +177,32 @@ export default function Inserimento({
         {/* Giocatore */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-ink">Giocatore</h2>
-          <p className="text-xs text-ink-mute">
-            {numeroSel !== null ? `Selezionato: ${numeroSel}` : 'Tocca un numero'}
-          </p>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <p className="text-xs text-ink-mute">
+              {numeroSel !== null ? `Selezionato: ${numeroSel}` : 'Tocca un numero'}
+            </p>
+            {osservaRosa && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={sostituzioni}
+                title={
+                  sostituzioni
+                    ? 'Spostamenti tra campo e panchina attivi: clicca per bloccarli'
+                    : 'Clicca per spostare i giocatori tra campo e panchina'
+                }
+                onClick={() => setSostituzioni((attivo) => !attivo)}
+                className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition-colors duration-150 ${
+                  sostituzioni
+                    ? 'border-accent bg-accent text-on-accent shadow-md shadow-accent/25'
+                    : 'border-line-strong bg-panel-2 text-ink-soft hover:border-ink-faint hover:text-ink'
+                }`}
+              >
+                <ArrowLeftRight size={13} aria-hidden="true" />
+                Sostituzioni
+              </button>
+            )}
+          </div>
         </div>
         {osservaRosa ? (
           <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-4 lg:grid-cols-2">
@@ -180,7 +212,11 @@ export default function Inserimento({
             ].map(([titolo, elenco, attivo]) => (
               <div
                 key={titolo}
-                className="rounded-xl border border-line bg-panel-2 p-2 sm:p-3"
+                className={`rounded-xl border p-2 sm:p-3 ${
+                  sostituzioni
+                    ? 'border-dashed border-accent/55 bg-panel-2'
+                    : 'border-line bg-panel-2'
+                }`}
                 data-drop-zone={attivo ? 'campo' : 'panchina'}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -205,11 +241,24 @@ export default function Inserimento({
                         aria-disabled={!attivo}
                         onPointerDown={(event) => {
                           trascinatoRef.current = false;
+                          origineTrascinamentoRef.current = null;
+                          // Il trascinamento esiste solo con il toggle "Sostituzioni" attivo.
+                          if (!sostituzioni) return;
+                          origineTrascinamentoRef.current = { x: event.clientX, y: event.clientY };
+                        }}
+                        onPointerMove={(event) => {
+                          const origine = origineTrascinamentoRef.current;
+                          if (!sostituzioni || !origine) return;
+                          if (
+                            Math.hypot(event.clientX - origine.x, event.clientY - origine.y) <
+                            SOGLIA_TRASCINAMENTO
+                          ) {
+                            return;
+                          }
+                          origineTrascinamentoRef.current = null;
+                          trascinatoRef.current = true;
                           setNumeroTrascinato(numero);
                           setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
-                        }}
-                        onPointerMove={() => {
-                          trascinatoRef.current = true;
                         }}
                         onClick={() => {
                           if (trascinatoRef.current) {
@@ -218,7 +267,7 @@ export default function Inserimento({
                           }
                           if (attivo) selezionaGiocatore(numero);
                         }}
-                        className={`${BTN_GIOCATORE} touch-none ${
+                        className={`${BTN_GIOCATORE} ${sostituzioni ? 'touch-none' : ''} ${
                           attivoSelezionato
                             ? GIOCATORE_ON
                             : attivo
@@ -255,45 +304,47 @@ export default function Inserimento({
         ) : (
           <div className="mt-2 grid grid-cols-4 gap-1.5 sm:mt-3 sm:grid-cols-6 sm:gap-2 md:grid-cols-7 lg:grid-cols-8 2xl:grid-cols-10">
             {numeri.map((numero) => {
-            const attivo = numeroSel === numero;
-            const cognome = osservaRosa ? cognomi.get(numero) : null;
-            const libero = osservaRosa && liberi.has(numero);
-            return (
-              <button
-                key={numero}
-                type="button"
-                aria-label={`Giocatore ${numero}`}
-                aria-pressed={attivo}
-                onClick={() => selezionaGiocatore(numero)}
-                className={`${BTN_GIOCATORE} ${
-                  attivo ? GIOCATORE_ON : libero ? GIOCATORE_LIBERO : GIOCATORE_OFF
-                }`}
-              >
-                <span className="text-base font-bold leading-none sm:text-lg">
-                  {numero}
-                  {libero && (
-                    <span
-                      className={`ml-1 align-super text-[8px] font-extrabold sm:text-[9px] ${
-                        attivo ? 'text-white/75' : 'text-info'
-                      }`}
-                    >
-                      L
+              const attivo = numeroSel === numero;
+              const cognome = osservaRosa ? cognomi.get(numero) : null;
+              const libero = osservaRosa && liberi.has(numero);
+              return (
+                <button
+                  key={numero}
+                  type="button"
+                  aria-label={`Giocatore ${numero}`}
+                  aria-pressed={attivo}
+                  onClick={() => selezionaGiocatore(numero)}
+                  className={`${BTN_GIOCATORE} ${
+                    attivo ? GIOCATORE_ON : libero ? GIOCATORE_LIBERO : GIOCATORE_OFF
+                  }`}
+                >
+                  <span className="text-base font-bold leading-none sm:text-lg">
+                    {numero}
+                    {libero && (
+                      <span
+                        className={`ml-1 align-super text-[8px] font-extrabold sm:text-[9px] ${
+                          attivo ? 'text-white/75' : 'text-info'
+                        }`}
+                      >
+                        L
+                      </span>
+                    )}
+                  </span>
+                  {cognome && (
+                    <span className="w-full truncate px-1 text-[9px] leading-none opacity-80 sm:text-[10px]">
+                      {cognome}
                     </span>
                   )}
-                </span>
-                {cognome && (
-                  <span className="w-full truncate px-1 text-[9px] leading-none opacity-80 sm:text-[10px]">
-                    {cognome}
-                  </span>
-                )}
-              </button>
+                </button>
               );
             })}
           </div>
         )}
         {osservaRosa && (
           <p className="mt-2 text-[10px] text-ink-mute sm:mt-3 sm:text-xs">
-            Trascina le card tra campo e panchina. I giocatori in panchina sono disabilitati.
+            {sostituzioni
+              ? 'Trascina le card tra campo e panchina. I giocatori in panchina sono disabilitati.'
+              : 'Attiva Sostituzioni per trascinare le card tra campo e panchina. I giocatori in panchina sono disabilitati.'}
           </p>
         )}
         {!osservaRosa && <p className="mt-2 text-xs text-ink-mute sm:mt-3">Numeri da 1 a 20.</p>}
