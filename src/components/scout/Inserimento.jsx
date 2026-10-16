@@ -80,6 +80,8 @@ export default function Inserimento({
   const [posizioneTrascinamento, setPosizioneTrascinamento] = useState(null);
   const trascinatoRef = useRef(false);
   const origineTrascinamentoRef = useRef(null);
+  /** Ultima posizione nota del puntatore: serve a trovare la zona al rilascio. */
+  const posizioneRiferimentoRef = useRef(null);
   /**
    * Toggle "Sostituzioni": finché è spento i giocatori restano al loro posto,
    * così il tocco serve solo a selezionarli e non si confonde col trascinamento.
@@ -90,15 +92,23 @@ export default function Inserimento({
     if (numeroTrascinato === null) return undefined;
 
     const aggiornaPosizione = (event) => {
+      posizioneRiferimentoRef.current = { x: event.clientX, y: event.clientY };
       setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
     };
     const rilasciaGiocatore = (event) => {
-      const area = event.target.closest?.('[data-drop-zone]');
+      // Su touch il browser cattura implicitamente il puntatore sulla card
+      // d'origine: event.target resta sempre quella card, mai l'elemento sotto
+      // il dito. La zona di drop va quindi cercata col puntamento geometrico.
+      const punto = posizioneRiferimentoRef.current;
+      const sottoIlDito = punto ? document.elementFromPoint?.(punto.x, punto.y) : null;
+      const area =
+        sottoIlDito?.closest?.('[data-drop-zone]') ?? event.target?.closest?.('[data-drop-zone]');
       if (area) {
         spostaGiocatore(numeroTrascinato, area.dataset.dropZone === 'campo');
       }
       setNumeroTrascinato(null);
       setPosizioneTrascinamento(null);
+      posizioneRiferimentoRef.current = null;
       origineTrascinamentoRef.current = null;
     };
 
@@ -258,6 +268,7 @@ export default function Inserimento({
                           origineTrascinamentoRef.current = null;
                           trascinatoRef.current = true;
                           setNumeroTrascinato(numero);
+                          posizioneRiferimentoRef.current = { x: event.clientX, y: event.clientY };
                           setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
                         }}
                         onClick={() => {

@@ -883,6 +883,30 @@ describe('scout', () => {
     expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).not.toContain(10);
   });
 
+  it('individua la zona di drop al rilascio su touch, con puntatore catturato', () => {
+    seedScout();
+    seedRosaEstesa();
+    renderAt('/scout/sc1');
+    fireEvent.click(screen.getByRole('switch', { name: 'Sostituzioni' }));
+
+    const zonaCampo = document.querySelector('[data-drop-zone="campo"]');
+    const zonaPanchina = document.querySelector('[data-drop-zone="panchina"]');
+    const card = within(zonaCampo).getByRole('button', { name: 'Giocatore 10' });
+
+    // jsdom non fa l'hit-test: qui il "dito" è sopra la panchina al rilascio.
+    document.elementFromPoint = () => zonaPanchina;
+    fireEvent.pointerDown(card, { clientX: 30, clientY: 30 });
+    fireEvent.pointerMove(card, { clientX: 130, clientY: 90 });
+    // Con la cattura implicita del touch anche pointerup arriva sulla card d'origine.
+    fireEvent.pointerUp(card, { clientX: 130, clientY: 90 });
+    delete document.elementFromPoint;
+
+    expect(
+      within(zonaPanchina).getByRole('button', { name: 'Giocatore 10 in panchina' }),
+    ).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).not.toContain(10);
+  });
+
   it('elenca gli scout e consente di eliminarli con conferma', async () => {
     seedScout();
     renderAt('/scout');
