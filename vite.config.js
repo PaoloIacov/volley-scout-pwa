@@ -10,7 +10,10 @@ export default defineConfig(({ mode }) => ({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': il service worker aggiornato resta in attesa e l'utente
+      // decide quando ricaricare (niente aggiornamenti a metà scrimata).
+      // Il banner che propone l'aggiornamento è in <AggiornaApp />.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico'],
       manifest: {
         name: 'Volley Scout',

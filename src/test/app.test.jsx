@@ -706,10 +706,16 @@ describe('scout', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Excel' }));
-    expect(await screen.findByText('Riepilogo esportato in Excel.')).toBeInTheDocument();
+    expect(
+      // L'export carica write-excel-file al volo e costruisce lo zip: in jsdom
+      // serve più di un secondo, il timeout di default fa fallire il test.
+      await screen.findByText('Riepilogo esportato in Excel.', { timeout: 10000 }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'PDF' }));
-    expect(await screen.findByText('Riepilogo esportato in PDF.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Riepilogo esportato in PDF.', { timeout: 10000 }),
+    ).toBeInTheDocument();
 
     // I due file generati: .xlsx è uno zip, il PDF inizia con %PDF.
     expect(download.blobs).toHaveLength(2);

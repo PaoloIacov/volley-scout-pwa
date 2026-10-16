@@ -7,6 +7,7 @@ import Calendario from './pages/Calendario.jsx';
 import Scout from './pages/Scout.jsx';
 import ScoutSessione from './pages/ScoutSessione.jsx';
 import Impostazioni from './pages/Impostazioni.jsx';
+import AggiornaApp from './components/AggiornaApp.jsx';
 import { migraDati } from './services/squadre.js';
 
 // Primo avvio: l'identità delle vecchie impostazioni diventa la squadra iniziale
@@ -15,20 +16,23 @@ migraDati();
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/squadre" element={<Squadre />} />
-        <Route path="/squadra" element={<Squadra />} />
-        <Route path="/calendario" element={<Calendario />} />
-        <Route path="/scout" element={<Scout />} />
-        <Route path="/scout/nuovo" element={<Scout />} />
-        <Route path="/scout/nuovo/:partitaIndex" element={<Scout />} />
-        <Route path="/scout/:id" element={<ScoutSessione />} />
-        <Route path="/impostazioni" element={<Impostazioni />} />
-        <Route path="*" element={<Navigate to="/home" replace />} />
-      </Route>
-    </Routes>
+    <>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/squadre" element={<Squadre />} />
+          <Route path="/squadra" element={<Squadra />} />
+          <Route path="/calendario" element={<Calendario />} />
+          <Route path="/scout" element={<Scout />} />
+          <Route path="/scout/nuovo" element={<Scout />} />
+          <Route path="/scout/nuovo/:partitaIndex" element={<Scout />} />
+          <Route path="/scout/:id" element={<ScoutSessione />} />
+          <Route path="/impostazioni" element={<Impostazioni />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
+      </Routes>
+      <AggiornaApp />
+    </>
   );
 }
