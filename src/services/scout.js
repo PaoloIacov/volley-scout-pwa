@@ -69,6 +69,13 @@ function normalizeInCampo(value) {
   return numeri.length > 0 ? numeri : undefined;
 }
 
+/** Ordine personalizzato dei giocatori (numeri di maglia), se definito. */
+function normalizeOrdine(value) {
+  if (!Array.isArray(value)) return undefined;
+  const numeri = [...new Set(value.map((n) => num(n)).filter((n) => n > 0))];
+  return numeri.length > 0 ? numeri : undefined;
+}
+
 /** Normalizza il record scout prima del salvataggio. */
 function normalizeScout(scout) {
   const sets = isList(scout?.sets).map(normalizeSet);
@@ -86,6 +93,8 @@ function normalizeScout(scout) {
     convocati: normalizeConvocati(scout?.convocati),
     /** Numeri attualmente in campo (undefined = formazione predefinita). */
     inCampo: normalizeInCampo(scout?.inCampo),
+    /** Ordine con cui elencare i giocatori (undefined = per numero di maglia). */
+    ordineGiocatori: normalizeOrdine(scout?.ordineGiocatori),
     setCorrente: Math.max(1, Number(scout?.setCorrente) || 1),
     sets: sets.length > 0 ? sets : [normalizeSet(null, 0)],
     azioni: isList(scout?.azioni).map(normalizeAzione).filter(Boolean),

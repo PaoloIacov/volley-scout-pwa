@@ -677,8 +677,8 @@ describe('scout', () => {
     // Ogni colonna è divisa in 4 sotto-colonne (# + - =), Tot compresa.
     const celle = within(riga).getAllByRole('cell');
     expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['1', '·', '·', '1']); // attacco
-    expect(celle.slice(13, 17).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '·']); // muro
-    expect(celle.slice(21, 25).map((cell) => cell.textContent)).toEqual(['1', '1', '·', '1']); // Tot
+    expect(celle.slice(9, 13).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '·']); // muro
+    expect(celle.slice(17, 21).map((cell) => cell.textContent)).toEqual(['1', '1', '·', '1']); // Tot
     expect(within(table).getByText('Tot')).toBeInTheDocument();
     expect(screen.getByText('Legenda:')).toBeInTheDocument();
   });
@@ -776,7 +776,7 @@ describe('scout', () => {
     // Colonne suddivise per esito: 1 attacco in errore, Totale 1 positiva + 1 errore.
     const celle = within(riga).getAllByRole('cell');
     expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['·', '·', '·', '1']);
-    expect(celle.slice(21, 25).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '1']);
+    expect(celle.slice(17, 21).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '1']);
   });
 
   it('sceglie i convocati al momento della creazione con il limite 12 più 2 liberi', () => {
@@ -857,60 +857,88 @@ describe('scout', () => {
     expect(screen.getByRole('button', { name: 'Muro' })).toBeEnabled();
   });
 
-  /** Trascinamento reale: pressione, movimento oltre la soglia e rilascio sulla zona. */
-  function trascina(card, zona) {
-    fireEvent.pointerDown(card, { clientX: 30, clientY: 30 });
-    fireEvent.pointerMove(card, { clientX: 130, clientY: 90 });
-    fireEvent.pointerUp(zona, { clientX: 130, clientY: 90 });
-  }
-
-  it('muove i giocatori tra campo e panchina solo con il toggle Sostituzioni attivo', () => {
+  it('sostituisce un giocatore in campo toccandone uno in panchina', () => {
     seedScout();
-    seedRosaEstesa();
+    seedRosaGrande();
     renderAt('/scout/sc1');
 
-    const toggle = screen.getByRole('switch', { name: 'Sostituzioni' });
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
-    const zonaCampo = document.querySelector('[data-drop-zone="campo"]');
-    const zonaPanchina = document.querySelector('[data-drop-zone="panchina"]');
+    // In campo la formazione predefinita (1-6 + libero 14): il 7 è in panchina.
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 1' }));
+    expect(screen.getByRole('button', { name: 'Giocatore 1' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
 
-    // Toggle spento: il tocco non sposta nessuno, resta solo la selezione.
-    trascina(within(zonaCampo).getByRole('button', { name: 'Giocatore 10' }), zonaPanchina);
-    expect(within(zonaCampo).getByRole('button', { name: 'Giocatore 10' })).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 7 in panchina' }));
 
-    // Toggle acceso: la card passa in panchina e lo spostamento viene salvato.
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    trascina(within(zonaCampo).getByRole('button', { name: 'Giocatore 10' }), zonaPanchina);
-    expect(
-      within(zonaPanchina).getByRole('button', { name: 'Giocatore 10 in panchina' }),
-    ).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).not.toContain(10);
+    // Il 7 entra e resta selezionato, l'1 passa in panchina: salvato subito.
+    expect(screen.getByRole('button', { name: 'Giocatore 7' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Giocatore 1 in panchina' })).toBeInTheDocument();
+    const inCampo = JSON.parse(localStorage.getItem('scout'))[0].inCampo;
+    expect(inCampo).toContain(7);
+    expect(inCampo).not.toContain(1);
   });
 
-  it('individua la zona di drop al rilascio su touch, con puntatore catturato', () => {
+  it('avvisa se si tocca un giocatore in panchina senza averne scelto uno in campo', async () => {
     seedScout();
+    seedRosaGrande();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 7 in panchina' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /Tocca prima un giocatore in campo/,
+    );
+    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).toBeUndefined();
+  });
+
+  it('registra il dato toccando una cella del riepilogo e lo annulla da lì', () => {
+    seedScout();
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+    // Senza dati "Annulla ultimo" è disabilitato, non nascosto.
+    expect(screen.getByRole('button', { name: 'Annulla ultimo' })).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Registra Attacco perfetta per N. 10' }),
+    );
+
+    let scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(1);
+    expect(scout.azioni[0]).toMatchObject({ numero: 10, azione: 'attacco', esito: '#' });
+    // Il perfetto fa segnare un punto a noi, come dall'inserimento.
+    expect(scout.sets[0]).toMatchObject({ nostro: 1, loro: 0 });
+
+    // Annulla ultimo, accanto a Excel/PDF, rimuove il dato e il suo punto.
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla ultimo' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(0);
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
+  });
+
+  it('riordina i giocatori trascinando le righe del riepilogo', () => {
+    seedScout({ convocati: [4, 10] });
     seedRosaEstesa();
     renderAt('/scout/sc1');
-    fireEvent.click(screen.getByRole('switch', { name: 'Sostituzioni' }));
 
-    const zonaCampo = document.querySelector('[data-drop-zone="campo"]');
-    const zonaPanchina = document.querySelector('[data-drop-zone="panchina"]');
-    const card = within(zonaCampo).getByRole('button', { name: 'Giocatore 10' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
 
-    // jsdom non fa l'hit-test: qui il "dito" è sopra la panchina al rilascio.
-    document.elementFromPoint = () => zonaPanchina;
-    fireEvent.pointerDown(card, { clientX: 30, clientY: 30 });
-    fireEvent.pointerMove(card, { clientX: 130, clientY: 90 });
-    // Con la cattura implicita del touch anche pointerup arriva sulla card d'origine.
-    fireEvent.pointerUp(card, { clientX: 130, clientY: 90 });
+    const riga4 = screen.getByText('Luca Neri').closest('tr');
+    const maniglia = screen.getByRole('button', { name: 'Trascina per ordinare N. 10' });
+
+    // jsdom non fa l'hit-test: il "dito" è sopra la riga del 4.
+    document.elementFromPoint = () => riga4;
+    fireEvent.pointerDown(maniglia, { clientX: 30, clientY: 30 });
+    fireEvent.pointerMove(maniglia, { clientX: 30, clientY: 80 });
+    fireEvent.pointerUp(maniglia, { clientX: 30, clientY: 80 });
     delete document.elementFromPoint;
 
-    expect(
-      within(zonaPanchina).getByRole('button', { name: 'Giocatore 10 in panchina' }),
-    ).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('scout'))[0].inCampo).not.toContain(10);
+    expect(JSON.parse(localStorage.getItem('scout'))[0].ordineGiocatori).toEqual([10, 4]);
   });
 
   it('elenca gli scout e consente di eliminarli con conferma', async () => {
@@ -973,13 +1001,12 @@ describe('export scout', () => {
       'Giocatore',
       'Ricezione',
       'Attacco',
-      'Difesa',
       'Muro',
       'Battuta',
       'Tot',
     ]);
     expect(dati.riepilogo.esiti).toEqual(['#', '+', '-', '=']);
-    // Una colonna per esito per ogni azione (4 × 5), più il Tot suddiviso.
+    // Una colonna per esito per ogni azione (4 × 4), più il Tot suddiviso.
     expect(dati.riepilogo.righe).toEqual([
       [
         'N. 7',
@@ -991,10 +1018,6 @@ describe('export scout', () => {
         0,
         0,
         0, // attacco
-        0,
-        0,
-        0,
-        0, // difesa
         0,
         1,
         0,
@@ -1021,10 +1044,6 @@ describe('export scout', () => {
         0,
         0,
         0,
-        0, // difesa
-        0,
-        0,
-        0,
         0, // muro
         0,
         0,
@@ -1046,10 +1065,6 @@ describe('export scout', () => {
       0,
       0,
       1, // attacco
-      0,
-      0,
-      0,
-      0, // difesa
       0,
       1,
       0,

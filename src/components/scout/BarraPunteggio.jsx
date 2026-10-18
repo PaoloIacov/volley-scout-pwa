@@ -36,7 +36,9 @@ export default function BarraPunteggio({
 
   return (
     <Card className="sticky top-16 z-30 flex flex-wrap items-center gap-1 px-1.5 py-1 sm:gap-2 sm:px-2.5 sm:py-1.5">
-      <div className="flex w-full min-w-0 flex-nowrap items-center gap-1 sm:w-auto sm:flex-1 sm:flex-wrap sm:gap-1.5">
+      {/* Il gruppo dei set resta della sua larghezza: così la parte punteggio
+          (con l'errore generico) sta tutta su una riga anche sui tablet. */}
+      <div className="flex w-full min-w-0 flex-nowrap items-center gap-1 sm:w-auto sm:gap-1.5">
         <span className="mr-0.5 hidden text-[10px] font-semibold uppercase tracking-wider text-ink-mute sm:inline">
           Set
         </span>

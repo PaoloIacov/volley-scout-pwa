@@ -5,11 +5,12 @@ import { getScout, salvaScout, SET_MASSIMO } from '../services/scout.js';
 import { getGiocatori } from '../services/giocatori.js';
 import { getSquadra } from '../services/squadre.js';
 import { shortDate } from '../lib/dates.js';
-import { puntiPerEsito } from '../lib/scout-stats.js';
+import { puntiPerEsito, costruisciRiepilogo, contaGenerici } from '../lib/scout-stats.js';
 import { Badge, ConfirmDialog, IconButton, SegmentedControl } from '../components/ui.jsx';
 import BarraPunteggio from '../components/scout/BarraPunteggio.jsx';
 import Inserimento from '../components/scout/Inserimento.jsx';
 import Riepilogo from '../components/scout/Riepilogo.jsx';
+import AzioniRiepilogo from '../components/scout/AzioniRiepilogo.jsx';
 
 function clampPunteggio(value) {
   const parsed = Number.parseInt(value, 10);
@@ -72,6 +73,9 @@ export default function ScoutSessione() {
   const selezionaSet = (n) => aggiorna({ ...scout, setCorrente: n });
 
   const cambiaInCampo = (inCampo) => aggiorna({ ...scout, inCampo });
+
+  /** Salva l'ordine dei giocatori impostato trascinando le righe nel riepilogo. */
+  const ordinaGiocatori = (ordine) => aggiorna({ ...scout, ordineGiocatori: ordine });
 
   const aggiungiSet = () => {
     if (scout.sets.length >= SET_MASSIMO) return;
@@ -208,6 +212,12 @@ export default function ScoutSessione() {
   const giocatori = getGiocatori(scout.squadraId);
   const osservata =
     scout.squadraOsservata === 'propria' ? (squadra?.nome ?? 'La mia squadra') : 'Avversaria';
+  const genericiTotali = contaGenerici(scout);
+  /** C'è qualcosa da annullare? */
+  const puoAnnullare = scout.azioni.length > 0 || genericiTotali > 0;
+  /** Il riepilogo sarebbe vuoto (niente righe e nessun errore generico)? */
+  const riepilogoVuoto =
+    costruisciRiepilogo(scout, giocatori).righe.length === 0 && genericiTotali === 0;
 
   return (
     <div className="space-y-3">
@@ -243,7 +253,18 @@ export default function ScoutSessione() {
         onEliminaSet={richiediEliminaSet}
       />
 
-      <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
+        {tab === 'riepilogo' && !riepilogoVuoto && (
+          <AzioniRiepilogo
+            scout={scout}
+            giocatori={giocatori}
+            squadraNome={squadra?.nome ?? ''}
+            puoAnnullare={puoAnnullare}
+            onAnnullaUltimo={annullaUltimo}
+          />
+        )}
+      </div>
 
       {tab === 'inserimento' ? (
         <Inserimento
@@ -260,7 +281,12 @@ export default function ScoutSessione() {
           onRimuoviGenerico={rimuoviGenerico}
         />
       ) : (
-        <Riepilogo scout={scout} giocatori={giocatori} squadraNome={squadra?.nome ?? ''} />
+        <Riepilogo
+          scout={scout}
+          giocatori={giocatori}
+          onRegistra={registra}
+          onOrdina={ordinaGiocatori}
+        />
       )}
 
       <ConfirmDialog

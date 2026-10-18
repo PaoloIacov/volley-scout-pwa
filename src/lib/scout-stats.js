@@ -4,7 +4,6 @@
 export const AZIONI = [
   { id: 'ricezione', label: 'Ricezione' },
   { id: 'attacco', label: 'Attacco' },
-  { id: 'difesa', label: 'Difesa' },
   { id: 'muro', label: 'Muro' },
   { id: 'battuta', label: 'Battuta' },
 ];
@@ -82,6 +81,23 @@ function cellaVuota() {
 }
 
 /**
+ * Ordina un elenco di numeri di maglia secondo l'ordine personalizzato salvato
+ * nello scout: chi è nell'ordine segue quella sequenza, gli altri (numeri nuovi
+ * o non presenti) restano in coda in ordine numerico crescente.
+ *
+ * @param {number[]} numeri numeri da ordinare
+ * @param {number[]|undefined} ordine ordine personalizzato (`scout.ordineGiocatori`)
+ */
+export function ordinaNumeri(numeri, ordine) {
+  const elenco = [...numeri];
+  if (!Array.isArray(ordine) || ordine.length === 0) return elenco.sort((a, b) => a - b);
+  const posizione = new Map(ordine.map((numero, index) => [numero, index]));
+  const valore = (numero) =>
+    posizione.has(numero) ? posizione.get(numero) : Number.MAX_SAFE_INTEGER;
+  return elenco.sort((a, b) => valore(a) - valore(b) || a - b);
+}
+
+/**
  * Riepilogo parziale dello scout: una riga per ogni convocato della squadra
  * (più ogni numero che ha registrato azioni), con i conteggi per azione ed esito.
  *
@@ -115,34 +131,29 @@ export function costruisciRiepilogo(scout, giocatori) {
   }
   scout.azioni.forEach((azione) => numeri.add(azione.numero));
 
-  const righe = [...numeri]
-    .sort((a, b) => a - b)
-    .map((numero) => {
-      const celle = Object.fromEntries(AZIONI.map((azione) => [azione.id, cellaVuota()]));
-      scout.azioni
-        .filter((azione) => azione.numero === numero)
-        .forEach((azione) => {
-          const cella = celle[azione.azione];
-          if (!cella) return;
-          cella.tot += 1;
-          if (isEsito(azione.esito)) cella[azione.esito] += 1;
-        });
-      const tot = AZIONI.reduce((somma, azione) => somma + celle[azione.id].tot, 0);
-      // Totali della riga per esito: servono alla colonna Tot suddivisa.
-      const perEsito = Object.fromEntries(
-        ESITI.map(({ id }) => [
-          id,
-          AZIONI.reduce((somma, azione) => somma + celle[azione.id][id], 0),
-        ]),
-      );
-      return {
-        numero,
-        nome: (osservaRosa && nomi.get(numero)) || '',
-        celle,
-        tot,
-        perEsito,
-      };
-    });
+  const righe = ordinaNumeri([...numeri], scout?.ordineGiocatori).map((numero) => {
+    const celle = Object.fromEntries(AZIONI.map((azione) => [azione.id, cellaVuota()]));
+    scout.azioni
+      .filter((azione) => azione.numero === numero)
+      .forEach((azione) => {
+        const cella = celle[azione.azione];
+        if (!cella) return;
+        cella.tot += 1;
+        if (isEsito(azione.esito)) cella[azione.esito] += 1;
+      });
+    const tot = AZIONI.reduce((somma, azione) => somma + celle[azione.id].tot, 0);
+    // Totali della riga per esito: servono alla colonna Tot suddivisa.
+    const perEsito = Object.fromEntries(
+      ESITI.map(({ id }) => [id, AZIONI.reduce((somma, azione) => somma + celle[azione.id][id], 0)]),
+    );
+    return {
+      numero,
+      nome: (osservaRosa && nomi.get(numero)) || '',
+      celle,
+      tot,
+      perEsito,
+    };
+  });
 
   const totali = Object.fromEntries(AZIONI.map((azione) => [azione.id, cellaVuota()]));
   righe.forEach((riga) => {

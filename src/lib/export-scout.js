@@ -202,8 +202,8 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     righe,
     {
       sheet: 'Scout',
-      // Colonna giocatore larga, poi 24 colonne strette (6 gruppi × 4 esiti).
-      columns: [{ width: 28 }, ...Array.from({ length: 24 }, () => ({ width: 7.5 }))],
+      // Colonna giocatore larga, poi 20 colonne strette (5 gruppi × 4 esiti).
+      columns: [{ width: 28 }, ...Array.from({ length: 20 }, () => ({ width: 7.5 }))],
     },
     { fontFamily: 'Calibri', fontSize: 11 },
   ).toBlob();

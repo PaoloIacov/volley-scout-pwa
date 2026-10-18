@@ -32,15 +32,20 @@ e design system a token condivisi.
   squadra da scoutizzare e dei convocati (max 14: 12 di movimento + 2 liberi,
   13 con un solo libero); schermata touch friendly con punteggio di set sempre
   visibile e modificabile (+/- o a tastiera), inserimento rapido
-  giocatore → azione (ricezione, attacco, difesa, muro, battuta) → esito
+  giocatore → azione (ricezione, attacco, muro, battuta) → esito
   (# perfetta, + positiva, - negativa, = errore): il punteggio del set si
   aggiorna in automatico (# fa segnare un punto a noi, = un punto
-  all'avversario; annulla/rimuovi riportano indietro il punto). C'è poi il
+  all'avversario; annulla/rimuovi riportano indietro il punto). Le
+  sostituzioni si fanno senza trascinamento: si tocca un giocatore in campo
+  (che resta selezionato) e poi uno in panchina per farlo entrare al suo posto;
+  dal tab Riepilogo si può anche scoutizzare direttamente toccando le celle
+  (giocatore × azione × esito) e si può cambiare l'ordine dei giocatori
+  trascinando le righe (l'ordine vale anche nella tab Inserimento). C'è poi il
   tasto "Errore generico", che dà un punto all'avversario e viene contato a
   parte senza toccare le statistiche dei giocatori. I set si aggiungono ma
   anche si eliminano dall'elenco in alto (con conferma se contengono dati);
-  c'è poi il tab riepilogo per giocatore (ogni colonna, Tot compresa, è
-  suddivisa nelle 4 sotto-colonne di esito, colorate). I liberi hanno card riconoscibili e
+  il tab riepilogo per giocatore mostra ogni colonna (Tot compresa) suddivisa
+  nelle 4 sotto-colonne di esito, colorate. I liberi hanno card riconoscibili e
   non registrano battuta né muro; i dati vengono salvati a ogni tocco, si può uscire e rientrare senza
   perdere nulla. Dal tab Riepilogo si esporta il riepilogo sintetico (info
   partita, punteggi dei set, tabella per giocatore con sotto-colonne di esito

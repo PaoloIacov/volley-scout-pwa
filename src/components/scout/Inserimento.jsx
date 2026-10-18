@@ -1,8 +1,7 @@
-import { ArrowLeftRight, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useToast } from '../Toast.jsx';
 import { Button, Card } from '../ui.jsx';
-import { AZIONI, ESITI, ESITO_CLASSI, isLibero } from '../../lib/scout-stats.js';
+import { AZIONI, ESITI, ESITO_CLASSI, isLibero, ordinaNumeri } from '../../lib/scout-stats.js';
 
 const LABEL_AZIONE = Object.fromEntries(AZIONI.map((azione) => [azione.id, azione.label]));
 const LABEL_ESITO = Object.fromEntries(ESITI.map((esito) => [esito.id, esito.label]));
@@ -13,10 +12,9 @@ const GIOCATORE_OFF = 'border-line-strong bg-panel-2 text-ink hover:border-ink-f
 /** Tonalità leggermente diversa: i liberi si riconoscono a colpo d'occhio. */
 const GIOCATORE_LIBERO = 'border-info/45 bg-info/10 text-ink hover:border-info/70';
 const GIOCATORE_ON = 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25';
-const GIOCATORE_PANCHINA = 'cursor-not-allowed border-line bg-panel text-ink-faint opacity-55';
-
-/** Distanza in px oltre la quale un tocco diventa un trascinamento. */
-const SOGLIA_TRASCINAMENTO = 6;
+/** Card in panchina: sempre toccabile, ma evidenziata quando c'è chi sostituire. */
+const GIOCATORE_PANCHINA = 'border-line-strong bg-panel-2 text-ink-soft hover:border-ink-faint';
+const GIOCATORE_PANCHINA_ON = 'border-dashed border-accent/60 bg-panel-2 text-ink';
 
 const BTN_AZIONE =
   'h-11 cursor-pointer rounded-xl border px-1 text-xs font-semibold transition-colors duration-150 sm:h-14 sm:px-2 sm:text-sm';
@@ -31,6 +29,10 @@ const ESITO_OFF = 'ring-1';
 /**
  * Pannello di inserimento rapido: giocatore → azione → esito.
  * Il dato viene registrato al tocco sull'esito e salvato subito.
+ *
+ * Sostituzioni senza trascinamento: toccando un giocatore in campo lo si
+ * seleziona; da lì si può registrargli il dato (azione + esito) oppure toccare
+ * un giocatore in panchina per farlo entrare al suo posto.
  */
 export default function Inserimento({
   scout,
@@ -55,7 +57,8 @@ export default function Inserimento({
         .filter((giocatore) => !convocati || convocati.has(giocatore.numeroMaglia))
         .map((giocatore) => giocatore.numeroMaglia)
     : Array.from({ length: 20 }, (_, index) => index + 1);
-  const numeri = [...new Set(base)].sort((a, b) => a - b);
+  // L'ordine personalizzato dal riepilogo vale anche qui.
+  const numeri = ordinaNumeri([...new Set(base)], scout.ordineGiocatori);
   const cognomi = new Map(
     giocatori.map((giocatore) => [giocatore.numeroMaglia, giocatore.cognome || giocatore.nome]),
   );
@@ -76,81 +79,45 @@ export default function Inserimento({
       ]
     : numeri;
   const numeriInCampo = new Set(inCampo);
-  const [numeroTrascinato, setNumeroTrascinato] = useState(null);
-  const [posizioneTrascinamento, setPosizioneTrascinamento] = useState(null);
-  const trascinatoRef = useRef(false);
-  const origineTrascinamentoRef = useRef(null);
-  /** Ultima posizione nota del puntatore: serve a trovare la zona al rilascio. */
-  const posizioneRiferimentoRef = useRef(null);
-  /**
-   * Toggle "Sostituzioni": finché è spento i giocatori restano al loro posto,
-   * così il tocco serve solo a selezionarli e non si confonde col trascinamento.
-   */
-  const [sostituzioni, setSostituzioni] = useState(false);
 
-  useEffect(() => {
-    if (numeroTrascinato === null) return undefined;
-
-    const aggiornaPosizione = (event) => {
-      posizioneRiferimentoRef.current = { x: event.clientX, y: event.clientY };
-      setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
-    };
-    const rilasciaGiocatore = (event) => {
-      // Su touch il browser cattura implicitamente il puntatore sulla card
-      // d'origine: event.target resta sempre quella card, mai l'elemento sotto
-      // il dito. La zona di drop va quindi cercata col puntamento geometrico.
-      const punto = posizioneRiferimentoRef.current;
-      const sottoIlDito = punto ? document.elementFromPoint?.(punto.x, punto.y) : null;
-      const area =
-        sottoIlDito?.closest?.('[data-drop-zone]') ?? event.target?.closest?.('[data-drop-zone]');
-      if (area) {
-        spostaGiocatore(numeroTrascinato, area.dataset.dropZone === 'campo');
-      }
-      setNumeroTrascinato(null);
-      setPosizioneTrascinamento(null);
-      posizioneRiferimentoRef.current = null;
-      origineTrascinamentoRef.current = null;
-    };
-
-    document.addEventListener('pointermove', aggiornaPosizione);
-    document.addEventListener('pointerup', rilasciaGiocatore);
-    document.addEventListener('pointercancel', rilasciaGiocatore);
-    return () => {
-      document.removeEventListener('pointermove', aggiornaPosizione);
-      document.removeEventListener('pointerup', rilasciaGiocatore);
-      document.removeEventListener('pointercancel', rilasciaGiocatore);
-    };
-  }, [numeroTrascinato]);
   /** Il libero non compie battuta né muro (solo se osserviamo la nostra rosa). */
   const azioneNonValida = (numero, azione) =>
     numero !== null &&
     osservaRosa &&
     liberi.has(numero) &&
     (azione === 'battuta' || azione === 'muro');
-  const liberoSel = numeroSel !== null && osservaRosa && liberi.has(numeroSel);
 
-  const selezionaGiocatore = (numero) => {
-    if (osservaRosa && !numeriInCampo.has(numero)) return;
-    const prossimo = numeroSel === numero ? null : numero;
-    setNumeroSel(prossimo);
-    // Un'azione non valida per il libero viene azzerata.
-    if (azioneNonValida(prossimo, azioneSel)) setAzioneSel(null);
+  /** Imposta la selezione, azzerando l'azione se non è valida per il giocatore. */
+  const impostaSelezione = (numero) => {
+    setNumeroSel(numero);
+    if (azioneNonValida(numero, azioneSel)) setAzioneSel(null);
   };
 
-  const spostaGiocatore = (numero, destinazione) => {
-    if (!osservaRosa || numero === null) return;
-    const giaInCampo = numeriInCampo.has(numero);
-    if (giaInCampo === destinazione) return;
-    const prossimo = destinazione
-      ? [...inCampo, numero]
-      : inCampo.filter((voce) => voce !== numero);
-    const movimentoInCampo = prossimo.filter((voce) => !liberi.has(voce)).length;
-    const liberiInCampo = prossimo.filter((voce) => liberi.has(voce)).length;
+  /** Tocco su un giocatore in campo: seleziona (o deseleziona se già scelto). */
+  const selezionaGiocatore = (numero) => {
+    impostaSelezione(numeroSel === numero ? null : numero);
+  };
+
+  /**
+   * Tocco su un giocatore in panchina: fa entrare lui al posto del giocatore
+   * in campo selezionato (che va in panchina). Senza selezione, avvisa.
+   */
+  const sostituisci = (entrato) => {
+    if (numeroSel === null) {
+      toast.show('Tocca prima un giocatore in campo, poi chi lo sostituisce.', 'error');
+      return;
+    }
+    if (entrato === numeroSel) return;
+    const prossimo = inCampo.map((numero) => (numero === numeroSel ? entrato : numero));
+    const movimentoInCampo = prossimo.filter((numero) => !liberi.has(numero)).length;
+    const liberiInCampo = prossimo.filter((numero) => liberi.has(numero)).length;
     if (movimentoInCampo > 6 || liberiInCampo > 1) {
       toast.show('In campo puoi avere 6 giocatori e 1 libero.', 'error');
       return;
     }
     onCambiaInCampo(prossimo);
+    // Il neo-entrato resta selezionato: si può registrargli subito il dato.
+    impostaSelezione(entrato);
   };
 
   const registra = (esito) => {
@@ -187,32 +154,9 @@ export default function Inserimento({
         {/* Giocatore */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-ink">Giocatore</h2>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <p className="text-xs text-ink-mute">
-              {numeroSel !== null ? `Selezionato: ${numeroSel}` : 'Tocca un numero'}
-            </p>
-            {osservaRosa && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={sostituzioni}
-                title={
-                  sostituzioni
-                    ? 'Spostamenti tra campo e panchina attivi: clicca per bloccarli'
-                    : 'Clicca per spostare i giocatori tra campo e panchina'
-                }
-                onClick={() => setSostituzioni((attivo) => !attivo)}
-                className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition-colors duration-150 ${
-                  sostituzioni
-                    ? 'border-accent bg-accent text-on-accent shadow-md shadow-accent/25'
-                    : 'border-line-strong bg-panel-2 text-ink-soft hover:border-ink-faint hover:text-ink'
-                }`}
-              >
-                <ArrowLeftRight size={13} aria-hidden="true" />
-                Sostituzioni
-              </button>
-            )}
-          </div>
+          <p className="text-xs text-ink-mute">
+            {numeroSel !== null ? `Selezionato: ${numeroSel}` : 'Tocca un numero in campo'}
+          </p>
         </div>
         {osservaRosa ? (
           <div className="mt-2 grid gap-2 sm:mt-3 sm:gap-4 lg:grid-cols-2">
@@ -223,11 +167,10 @@ export default function Inserimento({
               <div
                 key={titolo}
                 className={`rounded-xl border p-2 sm:p-3 ${
-                  sostituzioni
+                  !attivo && numeroSel !== null
                     ? 'border-dashed border-accent/55 bg-panel-2'
                     : 'border-line bg-panel-2'
                 }`}
-                data-drop-zone={attivo ? 'campo' : 'panchina'}
               >
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-mute">
@@ -239,7 +182,7 @@ export default function Inserimento({
                 </div>
                 <div className="mt-1.5 grid grid-cols-4 gap-1.5 sm:mt-2 sm:grid-cols-4 sm:gap-2 xl:grid-cols-6">
                   {elenco.map((numero) => {
-                    const attivoSelezionato = numeroSel === numero;
+                    const attivoSelezionato = attivo && numeroSel === numero;
                     const cognome = cognomi.get(numero);
                     const libero = liberi.has(numero);
                     return (
@@ -247,45 +190,23 @@ export default function Inserimento({
                         key={numero}
                         type="button"
                         aria-label={`Giocatore ${numero}${attivo ? '' : ' in panchina'}`}
-                        aria-pressed={attivoSelezionato}
-                        aria-disabled={!attivo}
-                        onPointerDown={(event) => {
-                          trascinatoRef.current = false;
-                          origineTrascinamentoRef.current = null;
-                          // Il trascinamento esiste solo con il toggle "Sostituzioni" attivo.
-                          if (!sostituzioni) return;
-                          origineTrascinamentoRef.current = { x: event.clientX, y: event.clientY };
-                        }}
-                        onPointerMove={(event) => {
-                          const origine = origineTrascinamentoRef.current;
-                          if (!sostituzioni || !origine) return;
-                          if (
-                            Math.hypot(event.clientX - origine.x, event.clientY - origine.y) <
-                            SOGLIA_TRASCINAMENTO
-                          ) {
-                            return;
-                          }
-                          origineTrascinamentoRef.current = null;
-                          trascinatoRef.current = true;
-                          setNumeroTrascinato(numero);
-                          posizioneRiferimentoRef.current = { x: event.clientX, y: event.clientY };
-                          setPosizioneTrascinamento({ x: event.clientX, y: event.clientY });
-                        }}
-                        onClick={() => {
-                          if (trascinatoRef.current) {
-                            trascinatoRef.current = false;
-                            return;
-                          }
-                          if (attivo) selezionaGiocatore(numero);
-                        }}
-                        className={`${BTN_GIOCATORE} ${sostituzioni ? 'touch-none' : ''} ${
+                        aria-pressed={attivo ? attivoSelezionato : undefined}
+                        title={
+                          attivo
+                            ? undefined
+                            : 'Tocca per far entrare questo giocatore al posto di quello selezionato'
+                        }
+                        onClick={() => (attivo ? selezionaGiocatore(numero) : sostituisci(numero))}
+                        className={`${BTN_GIOCATORE} ${
                           attivoSelezionato
                             ? GIOCATORE_ON
                             : attivo
                               ? libero
                                 ? GIOCATORE_LIBERO
                                 : GIOCATORE_OFF
-                              : GIOCATORE_PANCHINA
+                              : numeroSel !== null
+                                ? GIOCATORE_PANCHINA_ON
+                                : GIOCATORE_PANCHINA
                         }`}
                       >
                         <span className="text-base font-bold leading-none sm:text-lg">
@@ -353,9 +274,9 @@ export default function Inserimento({
         )}
         {osservaRosa && (
           <p className="mt-2 text-[10px] text-ink-mute sm:mt-3 sm:text-xs">
-            {sostituzioni
-              ? 'Trascina le card tra campo e panchina. I giocatori in panchina sono disabilitati.'
-              : 'Attiva Sostituzioni per trascinare le card tra campo e panchina. I giocatori in panchina sono disabilitati.'}
+            {numeroSel !== null
+              ? `N. ${numeroSel}: scegli azione ed esito per registrare il dato, oppure tocca un giocatore in panchina per sostituirlo.`
+              : 'Tocca un giocatore in campo: potrai registrargli il dato o sostituirlo con uno in panchina.'}
           </p>
         )}
         {!osservaRosa && <p className="mt-2 text-xs text-ink-mute sm:mt-3">Numeri da 1 a 20.</p>}
@@ -366,7 +287,7 @@ export default function Inserimento({
             <h2 className="text-sm font-semibold text-ink">Azione</h2>
             <p className="text-xs text-ink-mute">Quale gesto tecnico ha compiuto</p>
           </div>
-          <div className="mt-2 grid grid-cols-5 gap-1.5 sm:mt-3 sm:grid-cols-5 sm:gap-2">
+          <div className="mt-2 grid grid-cols-4 gap-1.5 sm:mt-3 sm:grid-cols-4 sm:gap-2">
             {AZIONI.map((azione) => {
               const attivo = azioneSel === azione.id;
               const disabilitata = azioneNonValida(numeroSel, azione.id);
@@ -417,33 +338,6 @@ export default function Inserimento({
           </div>
         </div>
       </Card>
-
-      {numeroTrascinato !== null && posizioneTrascinamento && (
-        <div
-          className={`pointer-events-none fixed z-50 flex h-14 w-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-xl border shadow-2xl ${
-            liberi.has(numeroTrascinato)
-              ? 'border-info/70 bg-info text-white'
-              : 'border-accent bg-accent text-on-accent'
-          }`}
-          style={{
-            left: posizioneTrascinamento.x,
-            top: posizioneTrascinamento.y,
-          }}
-          aria-hidden="true"
-        >
-          <span className="text-lg font-bold leading-none">
-            {numeroTrascinato}
-            {liberi.has(numeroTrascinato) && (
-              <span className="ml-1 align-super text-[9px] font-extrabold text-white/75">L</span>
-            )}
-          </span>
-          {cognomi.get(numeroTrascinato) && (
-            <span className="w-full truncate px-1 text-center text-[10px] leading-none opacity-90">
-              {cognomi.get(numeroTrascinato)}
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Dati inseriti, sempre dopo le pulsantiere e a tutta larghezza */}
       <div className="grid w-full gap-4 lg:grid-cols-2">
