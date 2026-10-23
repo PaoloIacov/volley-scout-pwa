@@ -11,18 +11,30 @@ const CHIP_OFF = 'border-line-strong bg-panel-2 text-ink hover:border-ink-faint'
 const CHIP_LIBERO = 'border-info/45 bg-info/10 text-ink hover:border-info/70';
 const CHIP_ON = 'border-accent bg-accent text-on-accent shadow-lg shadow-accent/25';
 
+const TIPI_PARTITA = [
+  { value: 'campionato', label: 'Campionato' },
+  { value: 'amichevole', label: 'Amichevole' },
+];
+
 function toFormValues(prefill) {
   return {
     data: prefill?.data || todayISO(),
     orarioInizio: prefill?.orarioInizio ?? '',
     avversario: prefill?.avversario ?? '',
     luogo: prefill?.luogo ?? '',
+    tipo: prefill?.tipo === 'amichevole' ? 'amichevole' : 'campionato',
     squadraOsservata: 'propria',
   };
 }
 
-/** Preselezione: i primi 12 di movimento e i primi 2 liberi, in ordine di maglia. */
-function preselezione(giocatori) {
+/**
+ * Preselezione dei convocati: in campionato i primi 12 di movimento e i primi
+ * 2 liberi; in amichevole tutta la rosa (nessun limite).
+ */
+function preselezione(giocatori, tipo = 'campionato') {
+  if (tipo === 'amichevole') {
+    return giocatori.map((giocatore) => giocatore.numeroMaglia).sort((a, b) => a - b);
+  }
   const movimento = giocatori.filter((giocatore) => !isLibero(giocatore)).slice(0, MAX_MOVIMENTO);
   const liberi = giocatori.filter(isLibero).slice(0, MAX_LIBERI);
   return [...movimento, ...liberi].map((giocatore) => giocatore.numeroMaglia).sort((a, b) => a - b);
@@ -46,9 +58,10 @@ function validate(values) {
  */
 export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCancel, onSave }) {
   const form = useForm(toFormValues(prefill), validate);
-  const [convocati, setConvocati] = useState(() => preselezione(giocatori));
+  const [convocati, setConvocati] = useState(() => preselezione(giocatori, prefill?.tipo));
 
   const osservaPropria = form.values.squadraOsservata === 'propria';
+  const amichevole = form.values.tipo === 'amichevole';
   const convocato = (numero) => convocati.includes(numero);
   const nMovimento = giocatori.filter(
     (giocatore) => !isLibero(giocatore) && convocato(giocatore.numeroMaglia),
@@ -63,9 +76,20 @@ export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCa
       setConvocati((correnti) => correnti.filter((n) => n !== numero));
       return;
     }
+    // In amichevole non c'è limite: si possono convocare tutti.
+    if (amichevole) {
+      setConvocati((correnti) => [...correnti, numero]);
+      return;
+    }
     const pieno = isLibero(giocatore) ? nLiberi >= MAX_LIBERI : nMovimento >= MAX_MOVIMENTO;
     if (pieno) return;
     setConvocati((correnti) => [...correnti, numero]);
+  };
+
+  /** Cambiando tipo si riallineano i convocati ai limiti previsti. */
+  const cambiaTipo = (tipo) => {
+    form.setField('tipo', tipo);
+    setConvocati(preselezione(giocatori, tipo));
   };
 
   const onSubmit = form.handleSubmit((values) => {
@@ -74,6 +98,7 @@ export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCa
       orarioInizio: values.orarioInizio.trim(),
       avversario: values.avversario.trim(),
       luogo: values.luogo.trim(),
+      tipo: values.tipo,
       squadraOsservata: values.squadraOsservata,
       // Convocati solo per la propria rosa (e solo se ce ne sono).
       ...(values.squadraOsservata === 'propria' && convocati.length > 0
@@ -162,6 +187,24 @@ export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCa
 
         <div className="sm:col-span-2">
           <Field
+            label="Tipo di gara"
+            hint={
+              amichevole
+                ? 'Amichevole: nessun limite di convocati, puoi scegliere tutta la rosa.'
+                : 'Campionato: massimo 14 convocati (12 di movimento + 2 liberi).'
+            }
+          >
+            <SegmentedControl
+              ariaLabel="Tipo di gara"
+              options={TIPI_PARTITA}
+              value={form.values.tipo}
+              onChange={cambiaTipo}
+            />
+          </Field>
+        </div>
+
+        <div className="sm:col-span-2">
+          <Field
             label="Squadra da scoutizzare"
             hint="Scegli quale delle due squadre seguire nel rilievo dati."
           >
@@ -178,7 +221,11 @@ export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCa
           <div className="sm:col-span-2">
             <Field
               label="Convocati"
-              hint={`Massimo ${MAX_CONVOCATI} convocati con due liberi (12 di movimento), 13 con un solo libero.`}
+              hint={
+                amichevole
+                  ? 'Amichevole: puoi convocare tutti i giocatori della rosa, senza limiti di ruolo.'
+                  : `Massimo ${MAX_CONVOCATI} convocati con due liberi (12 di movimento), 13 con un solo libero.`
+              }
             >
               {giocatori.length === 0 ? (
                 <p className="text-sm text-ink-mute">
@@ -187,18 +234,30 @@ export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCa
               ) : (
                 <>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-mute">
-                    <span>
-                      Di movimento:{' '}
-                      <b className="text-ink">
-                        {nMovimento}/{MAX_MOVIMENTO}
-                      </b>
-                    </span>
-                    <span>
-                      Liberi:{' '}
-                      <b className="text-ink">
-                        {nLiberi}/{MAX_LIBERI}
-                      </b>
-                    </span>
+                    {amichevole ? (
+                      <span>
+                        Convocati:{' '}
+                        <b className="text-ink">
+                          {convocati.length}/{giocatori.length}
+                        </b>{' '}
+                        · nessun limite
+                      </span>
+                    ) : (
+                      <>
+                        <span>
+                          Di movimento:{' '}
+                          <b className="text-ink">
+                            {nMovimento}/{MAX_MOVIMENTO}
+                          </b>
+                        </span>
+                        <span>
+                          Liberi:{' '}
+                          <b className="text-ink">
+                            {nLiberi}/{MAX_LIBERI}
+                          </b>
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {giocatori.map((giocatore) => {
@@ -211,8 +270,10 @@ export default function ScoutForm({ open, prefill, squadra, giocatori = [], onCa
                           type="button"
                           aria-label={`Convoca ${giocatore.nome} ${giocatore.cognome}`}
                           aria-pressed={attivo}
-                          disabled={!attivo && pieno}
-                          title={pieno && !attivo ? 'Limite convocati raggiunto' : undefined}
+                          disabled={!amichevole && !attivo && pieno}
+                          title={
+                            !amichevole && pieno && !attivo ? 'Limite convocati raggiunto' : undefined
+                          }
                           onClick={() => toggleConvocato(giocatore)}
                           className={`${CHIP_CONVOCATO} ${
                             attivo ? CHIP_ON : libero ? CHIP_LIBERO : CHIP_OFF

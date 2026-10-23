@@ -25,33 +25,45 @@ e design system a token condivisi.
 - **Home**: hero della squadra attiva, statistiche rapide, prossima partita
 - **Rosa**: CRUD giocatori (nome, cognome, numero maglia, ruolo),
   validazione dei campi, import/export JSON
-- **Calendario**: CRUD partite (data, orario, avversario, luogo),
-  ordinamento per data, evidenziazione delle gare passate, import/export JSON
+- **Calendario**: CRUD partite (data, orario, avversario, luogo, tipo
+  campionato/amichevole), ordinamento per data, evidenziazione delle gare
+  passate, import/export JSON
 - **Scout**: rilevamento statistico delle partite, creato dalla Home o dal
-  pulsante su ogni partita del calendario (dati precompilati) con scelta della
-  squadra da scoutizzare e dei convocati (max 14: 12 di movimento + 2 liberi,
-  13 con un solo libero); schermata touch friendly con punteggio di set sempre
-  visibile e modificabile (+/- o a tastiera), inserimento rapido
-  giocatore → azione (ricezione, attacco, muro, battuta) → esito
-  (# perfetta, + positiva, - negativa, = errore): il punteggio del set si
-  aggiorna in automatico (# fa segnare un punto a noi, = un punto
-  all'avversario; annulla/rimuovi riportano indietro il punto). Le
-  sostituzioni si fanno senza trascinamento: si tocca un giocatore in campo
-  (che resta selezionato) e poi uno in panchina per farlo entrare al suo posto;
-  dal tab Riepilogo si può anche scoutizzare direttamente toccando le celle
-  (giocatore × azione × esito) e si può cambiare l'ordine dei giocatori
-  trascinando le righe (l'ordine vale anche nella tab Inserimento). C'è poi il
-  tasto "Errore generico", che dà un punto all'avversario e viene contato a
-  parte senza toccare le statistiche dei giocatori. I set si aggiungono ma
-  anche si eliminano dall'elenco in alto (con conferma se contengono dati);
-  il tab riepilogo per giocatore mostra ogni colonna (Tot compresa) suddivisa
-  nelle 4 sotto-colonne di esito, colorate. I liberi hanno card riconoscibili e
-  non registrano battuta né muro; i dati vengono salvati a ogni tocco, si può uscire e rientrare senza
-  perdere nulla. Dal tab Riepilogo si esporta il riepilogo sintetico (info
-  partita, punteggi dei set, tabella per giocatore con sotto-colonne di esito
-  colorate ed errori generici) in
-  Excel (.xlsx) o PDF: le librerie di export vengono caricate solo al momento
-  del download
+  pulsante su ogni partita del calendario (dati precompilati, incluso il tipo
+  di gara) oppure da zero scegliendo esplicitamente campionato o amichevole.
+  In campionato i convocati sono al massimo 14 (12 di movimento + 2 liberi);
+  in amichevole non c'è limite e viene preselezionata tutta la rosa. La
+  schermata è touch friendly, con punteggio del set sempre visibile e
+  modificabile (+/- o a tastiera) e senza tetto a 25: oltre al set point
+  compaiono vantaggio e set concluso (tie-break a 15 nel quinto set).
+  L'inserimento è rapido: giocatore → azione (ricezione, attacco, muro,
+  battuta) → esito (# perfetta, + positiva, - negativa, = errore). Il `#`
+  assegna un punto solo per attacco, muro e battuta (la ricezione perfetta non
+  muove il punteggio), mentre `=` assegna sempre un punto all'avversario;
+  annulla/rimuovi riportano indietro il punto.
+  A ogni set si scelgono i 7 titolari (6 di movimento + 1 libero), mostrati in
+  cima al riepilogo con il libero in fondo. Nel riepilogo non si trascina più:
+  il pulsante accanto al giocatore apre la sostituzione con la panchina,
+  mantenendo il vincolo 6 + 1. La tabella mostra solo i 7 titolari del set
+  attivo e non ha più la colonna Tot (resta negli export) per evitare
+  slittamenti. Punteggio, tab e "Annulla ultimo" restano sticky; le label
+  delle azioni hanno contrasto e separatori più marcati e l'intestazione della
+  tabella è sticky. Le sostituzioni funzionano anche nella tab Inserimento,
+  toccando un giocatore in campo e poi uno in panchina. Ci sono poi i tasti
+  "Errore generico" (punto all'avversario) e "Errore avversario" (punto a noi):
+  vengono contati a parte senza toccare le statistiche dei giocatori, così nel
+  riepilogo si vede anche quanti dei nostri punti derivano da errori avversari
+  (con percentuale sul totale). I set si aggiungono ma anche si
+  eliminano dall'elenco in alto (con conferma se contengono dati). I liberi
+  hanno card riconoscibili e non registrano battuta né muro; i dati vengono
+  salvati a ogni tocco, si può uscire e rientrare senza perdere nulla. Dal tab
+  Riepilogo si scoutizza anche toccando direttamente le celle
+  (giocatore × azione × esito).
+- **Export scout**: dal tab Riepilogo si esporta il riepilogo sintetico (info
+  partita e tipo di gara, punteggi dei set, tabella per giocatore con
+  sotto-colonne di esito colorate, Tot compreso, errori generici e punti da
+  errori avversari) in Excel (.xlsx) o PDF: le librerie di export vengono
+  caricate solo al momento del download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
   (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)

@@ -172,6 +172,24 @@ describe('calendario', () => {
     const saved = JSON.parse(localStorage.getItem('partite'));
     expect(saved.map((p) => p.data)).toEqual(['2026-11-01', '2026-12-01']);
     expect(saved.every((p) => p.squadraId === 's1')).toBe(true);
+    expect(saved.every((p) => p.tipo === 'campionato')).toBe(true);
+  });
+
+  it('salva il tipo di gara scelto (campionato o amichevole)', async () => {
+    renderAt('/calendario');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuova' }));
+    fill('Data *', '2026-12-05');
+    fill('Orario *', '18:00');
+    fill('Avversario *', 'squadra amica');
+    fill('Luogo *', 'palestra z');
+    const dialog = screen.getByRole('dialog', { name: 'Nuova partita' });
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Amichevole' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aggiungi' }));
+
+    expect(await screen.findByText('vs Squadra Amica')).toBeInTheDocument();
+    expect(screen.getByText('Amichevole')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('partite'))[0].tipo).toBe('amichevole');
   });
 });
 
@@ -551,6 +569,52 @@ describe('scout', () => {
     expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(0);
   });
 
+  it('la ricezione perfetta non fa segnare punto (solo attacco, muro e battuta)', () => {
+    seedScout();
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ricezione' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Esito perfetta' }));
+
+    let scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(1);
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
+
+    // Le altre azioni con # segnano regolarmente.
+    fireEvent.click(screen.getByRole('button', { name: 'Attacco' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Esito perfetta' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets[0]).toMatchObject({ nostro: 1, loro: 0 });
+
+    // Annullando l'attacco il punto torna indietro; la ricezione non toglie nulla.
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla ultimo' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla ultimo' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(0);
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
+  });
+
+  it('non ha un tetto a 25: il punteggio continua ai vantaggi', () => {
+    seedScout({ sets: [{ n: 1, nostro: 24, loro: 24 }] });
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi punto a Noi' }));
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(25);
+    expect(screen.getByText('Vantaggio')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi punto a Noi' }));
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(26);
+    expect(screen.getByText('Set concluso')).toBeInTheDocument();
+
+    const set = JSON.parse(localStorage.getItem('scout'))[0].sets[0];
+    expect(set).toMatchObject({ nostro: 26, loro: 24 });
+  });
+
   it('modifica il punteggio con i tasti +/- e scrivendo il numero', () => {
     seedScout();
     renderAt('/scout/sc1');
@@ -674,12 +738,11 @@ describe('scout', () => {
       .getAllByRole('row')
       .find((row) => within(row).queryByText('Mario Rossi'));
     expect(riga).toBeDefined();
-    // Ogni colonna è divisa in 4 sotto-colonne (# + - =), Tot compresa.
+    // Ogni azione ha le 4 sotto-colonne di esito; il Tot resta negli export.
     const celle = within(riga).getAllByRole('cell');
     expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['1', '·', '·', '1']); // attacco
     expect(celle.slice(9, 13).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '·']); // muro
-    expect(celle.slice(17, 21).map((cell) => cell.textContent)).toEqual(['1', '1', '·', '1']); // Tot
-    expect(within(table).getByText('Tot')).toBeInTheDocument();
+    expect(within(table).queryByText('Tot')).not.toBeInTheDocument();
     expect(screen.getByText('Legenda:')).toBeInTheDocument();
   });
 
@@ -773,10 +836,44 @@ describe('scout', () => {
     expect(screen.getByText('Errori generici:')).toBeInTheDocument();
     expect(screen.getByText('· set 1: 1')).toBeInTheDocument();
     const riga = screen.getByText('Mario Rossi').closest('tr');
-    // Colonne suddivise per esito: 1 attacco in errore, Totale 1 positiva + 1 errore.
+    // Colonne suddivise per esito: 1 attacco in errore (il Tot è solo nell'export).
     const celle = within(riga).getAllByRole('cell');
     expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['·', '·', '·', '1']);
-    expect(celle.slice(17, 21).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '1']);
+    expect(celle).toHaveLength(17); // giocatore + 4 azioni × 4 esiti
+  });
+
+  it('registra un errore avversario: punto nostro, statistica separata e annullabile', () => {
+    seedScout();
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Errore avversario' }));
+
+    let scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.sets[0]).toMatchObject({ nostro: 1, loro: 0 });
+    expect(scout.erroriAvversari).toHaveLength(1);
+    expect(scout.erroriAvversari[0]).toMatchObject({ set: 1 });
+    expect(scout.azioni).toHaveLength(0);
+    expect(screen.getByLabelText('Punteggio nostro')).toHaveValue(1);
+
+    // Compare nella cronologia e si può rimuovere da lì, riportando il punto.
+    expect(screen.getByText('Errore avversario · set 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Rimuovi errore avversario' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.erroriAvversari).toHaveLength(0);
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
+
+    // Lo si reinserisce per verificare anche il riepilogo e "Annulla ultimo".
+    fireEvent.click(screen.getByRole('button', { name: 'Errore avversario' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+    expect(screen.getByText('Punti da errori avversari:')).toBeInTheDocument();
+    expect(screen.getByText(/100% dei nostri punti \(1\/1\)/)).toBeInTheDocument();
+
+    // Annulla ultimo toglie l'errore e il punto che aveva dato a noi.
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla ultimo' }));
+    scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.erroriAvversari).toHaveLength(0);
+    expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
   });
 
   it('sceglie i convocati al momento della creazione con il limite 12 più 2 liberi', () => {
@@ -813,6 +910,31 @@ describe('scout', () => {
     expect(scout.convocati).toContain(15);
     expect(scout.convocati).not.toContain(14);
     expect(scout.convocati).not.toContain(13);
+  });
+
+  it("in amichevole non applica il limite dei convocati: si può convocare tutta la rosa", () => {
+    seedRosaGrande();
+    renderAt('/scout/nuovo');
+
+    const dialog = screen.getByRole('dialog', { name: 'Nuovo scout' });
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Amichevole' }));
+
+    const conta = (atteso) => (_, el) => el?.textContent === atteso;
+    expect(
+      within(dialog).getByText(conta('Convocati: 16/16 · nessun limite'), { selector: 'span' }),
+    ).toBeInTheDocument();
+    // I giocatori oltre il limite di campionato e tutti i liberi sono convocabili.
+    expect(
+      within(dialog).getByRole('button', { name: 'Convoca Giocatore13 Rossi13' }),
+    ).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Convoca Marco Verdi' })).toBeEnabled();
+
+    fill('Avversario *', 'Volley Amichevole');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Inizia lo scout' }));
+
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.tipo).toBe('amichevole');
+    expect(scout.convocati).toHaveLength(16);
   });
 
   it('applica i convocati in sessione: solo i convocati in griglia e nel riepilogo', () => {
@@ -921,24 +1043,54 @@ describe('scout', () => {
     expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
   });
 
-  it('riordina i giocatori trascinando le righe del riepilogo', () => {
-    seedScout({ convocati: [4, 10] });
-    seedRosaEstesa();
+  it('mostra solo i 7 titolari del set e li sostituisce dalla tabella', () => {
+    seedScout();
+    seedRosaGrande();
     renderAt('/scout/sc1');
 
     fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
 
-    const riga4 = screen.getByText('Luca Neri').closest('tr');
-    const maniglia = screen.getByRole('button', { name: 'Trascina per ordinare N. 10' });
+    // Formazione predefinita: 1-6 di movimento + 14 libero. Il 7 è in panchina.
+    expect(screen.getByRole('button', { name: 'Sostituisci N. 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sostituisci N. 14' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sostituisci N. 7' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Trascina per ordinare')).not.toBeInTheDocument();
 
-    // jsdom non fa l'hit-test: il "dito" è sopra la riga del 4.
-    document.elementFromPoint = () => riga4;
-    fireEvent.pointerDown(maniglia, { clientX: 30, clientY: 30 });
-    fireEvent.pointerMove(maniglia, { clientX: 30, clientY: 80 });
-    fireEvent.pointerUp(maniglia, { clientX: 30, clientY: 80 });
-    delete document.elementFromPoint;
+    fireEvent.click(screen.getByRole('button', { name: 'Sostituisci N. 1' }));
+    const dialog = screen.getByRole('dialog', { name: 'Sostituisci N. 1' });
+    // Il 15 è un libero e non può entrare al posto di un giocatore di movimento.
+    expect(within(dialog).getByRole('button', { name: 'Fai entrare N. 15' })).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fai entrare N. 7' }));
 
-    expect(JSON.parse(localStorage.getItem('scout'))[0].ordineGiocatori).toEqual([10, 4]);
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.formazioni.find((voce) => voce.set === 1).numeri).toContain(7);
+    expect(scout.formazioni.find((voce) => voce.set === 1).numeri).not.toContain(1);
+    expect(scout.inCampo).toContain(7);
+    expect(screen.getByRole('button', { name: 'Sostituisci N. 7' })).toBeInTheDocument();
+  });
+
+  it("fa scegliere i 7 titolari all'inizio di ogni nuovo set", () => {
+    seedScout();
+    seedRosaGrande();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi set' }));
+    const dialog = screen.getByRole('dialog', { name: 'Titolari del set 2' });
+    // La proposta riparte dalla formazione del set precedente.
+    expect(
+      within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    // Si può cambiare: fuori l'1, dentro il 7.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Titolare Giocatore7 Rossi7' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Conferma titolari' }));
+
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    const formazione2 = scout.formazioni.find((voce) => voce.set === 2);
+    expect(formazione2.numeri).toContain(7);
+    expect(formazione2.numeri).not.toContain(1);
+    expect(scout.setCorrente).toBe(2);
   });
 
   it('elenca gli scout e consente di eliminarli con conferma', async () => {
@@ -977,6 +1129,7 @@ describe('export scout', () => {
       { id: 'g1', ts: 4, set: 1 },
       { id: 'g2', ts: 5, set: 2 },
     ],
+    erroriAvversari: [{ id: 'v1', ts: 6, set: 1 }],
   };
   const ROSA = [{ nome: 'Mario', cognome: 'Rossi', numeroMaglia: 10, ruolo: 'palleggiatore' }];
 
@@ -990,6 +1143,7 @@ describe('export scout', () => {
     expect(dati.info).toContainEqual(['Squadra osservata', 'Prima Divisione']);
     expect(dati.info).toContainEqual(['Azioni rilevate', 3]);
     expect(dati.info).toContainEqual(['Errori generici', 2]);
+    expect(dati.info).toContainEqual(['Punti da errori avversari', 1]);
 
     expect(dati.punteggio.righe).toEqual([
       ['Set 1', 25, 23],

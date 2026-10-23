@@ -41,6 +41,7 @@ export default function Scout() {
       orarioInizio: partita.orarioInizio,
       avversario: partita.avversario,
       luogo: partita.luogo,
+      tipo: partita.tipo,
     };
   })();
 
@@ -125,6 +126,15 @@ export default function Scout() {
                     </Badge>
                     <Badge className="bg-panel-2 text-ink-soft ring-1 ring-line-strong">
                       {scout.azioni.length} {scout.azioni.length === 1 ? 'azione' : 'azioni'}
+                    </Badge>
+                    <Badge
+                      className={
+                        scout.tipo === 'amichevole'
+                          ? 'bg-info/10 text-info ring-1 ring-info/30'
+                          : 'bg-panel-2 text-ink-soft ring-1 ring-line-strong'
+                      }
+                    >
+                      {scout.tipo === 'amichevole' ? 'Amichevole' : 'Campionato'}
                     </Badge>
                     <Badge className="bg-panel-2 text-ink-soft ring-1 ring-line-strong">
                       Set {scout.setCorrente}

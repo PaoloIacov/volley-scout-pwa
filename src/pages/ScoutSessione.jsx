@@ -5,12 +5,22 @@ import { getScout, salvaScout, SET_MASSIMO } from '../services/scout.js';
 import { getGiocatori } from '../services/giocatori.js';
 import { getSquadra } from '../services/squadre.js';
 import { shortDate } from '../lib/dates.js';
-import { puntiPerEsito, costruisciRiepilogo, contaGenerici } from '../lib/scout-stats.js';
+import {
+  puntiPerEsito,
+  costruisciRiepilogo,
+  contaErroriAvversari,
+  contaGenerici,
+  formazioneDelSet,
+  formazionePredefinita,
+  impostaFormazione,
+  ordinaNumeri,
+} from '../lib/scout-stats.js';
 import { Badge, ConfirmDialog, IconButton, SegmentedControl } from '../components/ui.jsx';
 import BarraPunteggio from '../components/scout/BarraPunteggio.jsx';
 import Inserimento from '../components/scout/Inserimento.jsx';
 import Riepilogo from '../components/scout/Riepilogo.jsx';
 import AzioniRiepilogo from '../components/scout/AzioniRiepilogo.jsx';
+import FormazioneModal from '../components/scout/FormazioneModal.jsx';
 
 function clampPunteggio(value) {
   const parsed = Number.parseInt(value, 10);
@@ -53,9 +63,32 @@ export default function ScoutSessione() {
   const [azioneSel, setAzioneSel] = useState(null);
   /** Set in attesa di conferma per l'eliminazione (null = nessuna). */
   const [setDaEliminare, setSetDaEliminare] = useState(null);
+  /** Set per cui si stanno scegliendo i 7 titolari (null = modale chiusa). */
+  const [setFormazione, setSetFormazione] = useState(null);
 
   /** Applica la modifica, la salva subito e aggiorna lo stato. */
   const aggiorna = (next) => setScout(salvaScout(next));
+
+  /**
+   * Formazione del set: quella scelta esplicitamente oppure quella predefinita
+   * (primi 6 di movimento + primo libero tra i convocati). Solo per la nostra
+   * squadra: quando si scoutizza l'avversaria i numeri restano 1-20.
+   */
+  const formazionePerSet = (setN) => {
+    if (!scout || scout.squadraOsservata !== 'propria') return undefined;
+    const rosa = getGiocatori(scout.squadraId);
+    const convocati =
+      Array.isArray(scout.convocati) && scout.convocati.length > 0
+        ? new Set(scout.convocati)
+        : null;
+    const numeri = ordinaNumeri(
+      rosa
+        .filter((giocatore) => !convocati || convocati.has(giocatore.numeroMaglia))
+        .map((giocatore) => giocatore.numeroMaglia),
+      scout.ordineGiocatori,
+    );
+    return formazioneDelSet(scout, setN) ?? formazionePredefinita(numeri, rosa);
+  };
 
   const cambiaPunteggio = (setN, campo, valore) =>
     aggiorna({
@@ -70,17 +103,60 @@ export default function ScoutSessione() {
     cambiaPunteggio(setN, campo, Math.max(0, (set?.[campo] ?? 0) + delta));
   };
 
-  const selezionaSet = (n) => aggiorna({ ...scout, setCorrente: n });
+  const selezionaSet = (n) => {
+    aggiorna({ ...scout, setCorrente: n });
+    // A ogni nuovo set si scelgono i 7 titolari (se non sono già impostati).
+    if (
+      n !== scout.setCorrente &&
+      scout.squadraOsservata === 'propria' &&
+      !formazioneDelSet(scout, n) &&
+      getGiocatori(scout.squadraId).length > 0
+    ) {
+      setSetFormazione(n);
+    }
+  };
 
-  const cambiaInCampo = (inCampo) => aggiorna({ ...scout, inCampo });
+  /** Le sostituzioni valgono per il set corrente e restano salvate. */
+  const cambiaInCampo = (inCampo) =>
+    aggiorna({
+      ...scout,
+      inCampo,
+      formazioni: impostaFormazione(scout, scout.setCorrente, inCampo),
+    });
 
-  /** Salva l'ordine dei giocatori impostato trascinando le righe nel riepilogo. */
-  const ordinaGiocatori = (ordine) => aggiorna({ ...scout, ordineGiocatori: ordine });
+  /**
+   * Sostituzione dalla tabella del riepilogo: stesso vincolo dell'inserimento
+   * (6 di movimento + 1 libero), salvata nella formazione del set corrente.
+   */
+  const sostituisci = (uscita, entrata) => {
+    const attuale = formazionePerSet(scout.setCorrente) ?? [];
+    if (!attuale.includes(uscita)) return;
+    const prossima = attuale.map((numero) => (numero === uscita ? entrata : numero));
+    aggiorna({
+      ...scout,
+      inCampo: prossima,
+      formazioni: impostaFormazione(scout, scout.setCorrente, prossima),
+    });
+  };
+
+  const confermaFormazione = (numeri) => {
+    if (setFormazione === null) return;
+    aggiorna({
+      ...scout,
+      formazioni: impostaFormazione(scout, setFormazione, numeri),
+      ...(setFormazione === scout.setCorrente ? { inCampo: numeri } : {}),
+    });
+    setSetFormazione(null);
+  };
 
   const aggiungiSet = () => {
     if (scout.sets.length >= SET_MASSIMO) return;
     const n = scout.sets.length + 1;
     aggiorna({ ...scout, sets: [...scout.sets, { n, nostro: 0, loro: 0 }], setCorrente: n });
+    // All'inizio di ogni set si scelgono i 7 titolari.
+    if (scout.squadraOsservata === 'propria' && getGiocatori(scout.squadraId).length > 0) {
+      setSetFormazione(n);
+    }
   };
 
   /** Descrive cosa contiene un set, per l'avviso prima dell'eliminazione. */
@@ -116,6 +192,9 @@ export default function ScoutSessione() {
       generici: (scout.generici ?? [])
         .filter((voce) => voce.set !== n)
         .map((voce) => ({ ...voce, set: voce.set > n ? voce.set - 1 : voce.set })),
+      formazioni: (scout.formazioni ?? [])
+        .filter((voce) => voce.set !== n)
+        .map((voce) => ({ ...voce, set: voce.set > n ? voce.set - 1 : voce.set })),
       setCorrente: Math.min(
         scout.setCorrente > n ? scout.setCorrente - 1 : scout.setCorrente,
         restanti.length,
@@ -137,10 +216,11 @@ export default function ScoutSessione() {
 
   /**
    * Registra l'azione e aggiorna in automatico il punteggio del set corrente:
-   * # fa segnare un punto a noi, = un punto all'avversario.
+   * # fa segnare un punto a noi (tranne che per la ricezione), = un punto
+   * all'avversario.
    */
   const registra = (numero, azione, esito) => {
-    const punti = puntiPerEsito(esito);
+    const punti = puntiPerEsito(esito, azione);
     aggiorna({
       ...scout,
       azioni: [...scout.azioni, { ts: Date.now(), set: scout.setCorrente, numero, azione, esito }],
@@ -159,27 +239,51 @@ export default function ScoutSessione() {
       sets: applicaPunti(scout.sets, scout.setCorrente, 0, 1),
     });
 
-  /** Rimuove l'ultimo dato inserito (azione o errore generico), con il suo punto. */
+  /** Errore avversario: dà un punto a noi, senza associarlo a un giocatore. */
+  const registraErroreAvversario = () =>
+    aggiorna({
+      ...scout,
+      erroriAvversari: [
+        ...(scout.erroriAvversari ?? []),
+        { ts: Date.now(), set: scout.setCorrente },
+      ],
+      sets: applicaPunti(scout.sets, scout.setCorrente, 1, 0),
+    });
+
+  /** Rimuove l'ultimo dato inserito (azione o errore), con il suo punto. */
   const annullaUltimo = () => {
-    const ultimaAzione = scout.azioni[scout.azioni.length - 1] ?? null;
-    const ultimoGenerico = scout.generici?.[scout.generici.length - 1] ?? null;
-    const genericoUltimo = ultimoGenerico && (!ultimaAzione || ultimoGenerico.ts > ultimaAzione.ts);
-    if (!ultimaAzione && !ultimoGenerico) return;
-    if (genericoUltimo) {
-      // L'errore generico aveva aggiunto un punto: lo si toglie insieme.
+    const eventi = [
+      ...scout.azioni.map((voce) => ({ ...voce, tipo: 'azione' })),
+      ...(scout.generici ?? []).map((voce) => ({ ...voce, tipo: 'generico' })),
+      ...(scout.erroriAvversari ?? []).map((voce) => ({ ...voce, tipo: 'avversario' })),
+    ].sort((a, b) => a.ts - b.ts);
+    const ultimo = eventi[eventi.length - 1] ?? null;
+    if (!ultimo) return;
+
+    if (ultimo.tipo === 'generico') {
+      // L'errore generico aveva aggiunto un punto all'avversario: lo si toglie.
       aggiorna({
         ...scout,
-        generici: scout.generici.filter((voce) => voce.id !== ultimoGenerico.id),
-        sets: applicaPunti(scout.sets, ultimoGenerico.set, 0, -1),
+        generici: scout.generici.filter((voce) => voce.id !== ultimo.id),
+        sets: applicaPunti(scout.sets, ultimo.set, 0, -1),
+      });
+      return;
+    }
+    if (ultimo.tipo === 'avversario') {
+      // L'errore avversario aveva aggiunto un punto a noi: lo si toglie.
+      aggiorna({
+        ...scout,
+        erroriAvversari: scout.erroriAvversari.filter((voce) => voce.id !== ultimo.id),
+        sets: applicaPunti(scout.sets, ultimo.set, -1, 0),
       });
       return;
     }
     // Un esito automatico (# o =) aveva mosso il punteggio: lo si riporta indietro.
-    const punti = puntiPerEsito(ultimaAzione.esito);
+    const punti = puntiPerEsito(ultimo.esito, ultimo.azione);
     aggiorna({
       ...scout,
-      azioni: scout.azioni.slice(0, -1),
-      sets: applicaPunti(scout.sets, ultimaAzione.set, -punti.nostro, -punti.loro),
+      azioni: scout.azioni.filter((voce) => voce.id !== ultimo.id),
+      sets: applicaPunti(scout.sets, ultimo.set, -punti.nostro, -punti.loro),
     });
   };
 
@@ -187,7 +291,7 @@ export default function ScoutSessione() {
   const rimuoviAzione = (azioneId) => {
     const azione = scout.azioni.find((voce) => voce.id === azioneId);
     if (!azione) return;
-    const punti = puntiPerEsito(azione.esito);
+    const punti = puntiPerEsito(azione.esito, azione.azione);
     aggiorna({
       ...scout,
       azioni: scout.azioni.filter((voce) => voce.id !== azioneId),
@@ -206,18 +310,41 @@ export default function ScoutSessione() {
     });
   };
 
+  /** Toglie un errore avversario dall'elenco, riportando indietro il nostro punto. */
+  const rimuoviErroreAvversario = (erroreId) => {
+    const errore = (scout.erroriAvversari ?? []).find((voce) => voce.id === erroreId);
+    if (!errore) return;
+    aggiorna({
+      ...scout,
+      erroriAvversari: scout.erroriAvversari.filter((voce) => voce.id !== erroreId),
+      sets: applicaPunti(scout.sets, errore.set, -1, 0),
+    });
+  };
+
   if (!scout) return <Navigate to="/scout" replace />;
 
   const squadra = getSquadra(scout.squadraId);
   const giocatori = getGiocatori(scout.squadraId);
+  const formazione = formazionePerSet(scout.setCorrente);
   const osservata =
     scout.squadraOsservata === 'propria' ? (squadra?.nome ?? 'La mia squadra') : 'Avversaria';
   const genericiTotali = contaGenerici(scout);
+  const avversariTotali = contaErroriAvversari(scout);
   /** C'è qualcosa da annullare? */
-  const puoAnnullare = scout.azioni.length > 0 || genericiTotali > 0;
-  /** Il riepilogo sarebbe vuoto (niente righe e nessun errore generico)? */
+  const puoAnnullare = scout.azioni.length > 0 || genericiTotali > 0 || avversariTotali > 0;
+  /** Il riepilogo sarebbe vuoto (niente righe e nessun errore)? */
   const riepilogoVuoto =
-    costruisciRiepilogo(scout, giocatori).righe.length === 0 && genericiTotali === 0;
+    costruisciRiepilogo(scout, giocatori).righe.length === 0 &&
+    genericiTotali === 0 &&
+    avversariTotali === 0;
+  /** Formazione proposta aprendo la scelta dei titolari. */
+  const formazioneIniziale =
+    setFormazione !== null
+      ? (formazioneDelSet(scout, setFormazione) ??
+        formazioneDelSet(scout, setFormazione - 1) ??
+        formazione ??
+        [])
+      : [];
 
   return (
     <div className="space-y-3">
@@ -237,39 +364,52 @@ export default function ScoutSessione() {
               .join(' · ')}
           </p>
         </div>
+        <Badge
+          className={
+            scout.tipo === 'amichevole'
+              ? 'shrink-0 bg-info/10 text-info ring-1 ring-info/30'
+              : 'shrink-0 bg-panel-2 text-ink-soft ring-1 ring-line-strong'
+          }
+        >
+          {scout.tipo === 'amichevole' ? 'Amichevole' : 'Campionato'}
+        </Badge>
         <Badge className="shrink-0 bg-accent/15 text-accent-text ring-1 ring-accent/25">
           {scout.azioni.length} {scout.azioni.length === 1 ? 'azione' : 'azioni'}
         </Badge>
       </div>
 
-      {/* Punteggio: sempre visibile, modificabile con +/- o a tastiera */}
-      <BarraPunteggio
-        scout={scout}
-        onCambiaPunteggio={cambiaPunteggio}
-        onDeltaPunteggio={deltaPunteggio}
-        onSelezionaSet={selezionaSet}
-        onAggiungiSet={aggiungiSet}
-        onErroreGenerico={registraErroreGenerico}
-        onEliminaSet={richiediEliminaSet}
-      />
+      {/* Punteggio e azioni: restano fissi sotto l'header mentre si scorre */}
+      <div className="sticky top-16 z-30 -mx-1 space-y-2 bg-app/95 px-1 pb-2 pt-1 backdrop-blur">
+        <BarraPunteggio
+          scout={scout}
+          onCambiaPunteggio={cambiaPunteggio}
+          onDeltaPunteggio={deltaPunteggio}
+          onSelezionaSet={selezionaSet}
+          onAggiungiSet={aggiungiSet}
+          onErroreGenerico={registraErroreGenerico}
+          onErroreAvversario={registraErroreAvversario}
+          onEliminaSet={richiediEliminaSet}
+        />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
-        {tab === 'riepilogo' && !riepilogoVuoto && (
-          <AzioniRiepilogo
-            scout={scout}
-            giocatori={giocatori}
-            squadraNome={squadra?.nome ?? ''}
-            puoAnnullare={puoAnnullare}
-            onAnnullaUltimo={annullaUltimo}
-          />
-        )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
+          {tab === 'riepilogo' && !riepilogoVuoto && (
+            <AzioniRiepilogo
+              scout={scout}
+              giocatori={giocatori}
+              squadraNome={squadra?.nome ?? ''}
+              puoAnnullare={puoAnnullare}
+              onAnnullaUltimo={annullaUltimo}
+            />
+          )}
+        </div>
       </div>
 
       {tab === 'inserimento' ? (
         <Inserimento
           scout={scout}
           giocatori={giocatori}
+          formazione={formazione}
           numeroSel={numeroSel}
           setNumeroSel={setNumeroSel}
           azioneSel={azioneSel}
@@ -279,15 +419,28 @@ export default function ScoutSessione() {
           onAnnullaUltimo={annullaUltimo}
           onRimuoviAzione={rimuoviAzione}
           onRimuoviGenerico={rimuoviGenerico}
+          onRimuoviErroreAvversario={rimuoviErroreAvversario}
         />
       ) : (
         <Riepilogo
           scout={scout}
           giocatori={giocatori}
+          formazione={formazione}
           onRegistra={registra}
-          onOrdina={ordinaGiocatori}
+          onSostituisci={sostituisci}
+          onScegliFormazione={() => setSetFormazione(scout.setCorrente)}
         />
       )}
+
+      <FormazioneModal
+        open={setFormazione !== null}
+        numeroSet={setFormazione ?? scout.setCorrente}
+        giocatori={giocatori}
+        convocati={scout.convocati}
+        iniziale={formazioneIniziale}
+        onCancel={() => setSetFormazione(null)}
+        onConfirm={confermaFormazione}
+      />
 
       <ConfirmDialog
         open={setDaEliminare !== null}

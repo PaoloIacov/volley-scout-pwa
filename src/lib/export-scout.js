@@ -4,7 +4,13 @@
    Le librerie vengono caricate dinamicamente all'export, così non pesano
    sul caricamento iniziale dell'app. */
 import { toItalianDate } from './dates.js';
-import { AZIONI, ESITI, costruisciRiepilogo, contaGenerici } from './scout-stats.js';
+import {
+  AZIONI,
+  ESITI,
+  costruisciRiepilogo,
+  contaErroriAvversari,
+  contaGenerici,
+} from './scout-stats.js';
 
 /** Colori dell'export, allineati al tema dell'app. */
 const COL_INTTESTAZIONE = '#18181b';
@@ -44,9 +50,11 @@ export function costruisciExport(scout, giocatori = [], squadraNome = '') {
     ['Data', toItalianDate(scout.data)],
     ['Orario', scout.orarioInizio],
     ['Luogo', scout.luogo],
+    ['Tipo di gara', scout.tipo === 'amichevole' ? 'Amichevole' : 'Campionato'],
     ['Squadra osservata', osservata],
     ['Azioni rilevate', scout.azioni.length],
     ['Errori generici', contaGenerici(scout)],
+    ['Punti da errori avversari', contaErroriAvversari(scout)],
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined);
 
   let setNostri = 0;

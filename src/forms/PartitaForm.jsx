@@ -1,7 +1,12 @@
 import { CalendarPlus, Check } from 'lucide-react';
 import { useForm } from '../hooks/useForm.js';
-import { Button, Field, Modal, inputClass } from '../components/ui.jsx';
+import { Button, Field, Modal, SegmentedControl, inputClass } from '../components/ui.jsx';
 import { toISO } from '../lib/dates.js';
+
+const TIPI_PARTITA = [
+  { value: 'campionato', label: 'Campionato' },
+  { value: 'amichevole', label: 'Amichevole' },
+];
 
 function toFormValues(partita) {
   return partita
@@ -10,8 +15,9 @@ function toFormValues(partita) {
         orarioInizio: partita.orarioInizio ?? '',
         avversario: partita.avversario ?? '',
         luogo: partita.luogo ?? '',
+        tipo: partita.tipo === 'amichevole' ? 'amichevole' : 'campionato',
       }
-    : { data: '', orarioInizio: '', avversario: '', luogo: '' };
+    : { data: '', orarioInizio: '', avversario: '', luogo: '', tipo: 'campionato' };
 }
 
 function validate(values) {
@@ -39,6 +45,7 @@ export default function PartitaForm({ open, partita, onCancel, onSave }) {
       orarioInizio: values.orarioInizio,
       avversario: values.avversario.trim(),
       luogo: values.luogo.trim(),
+      tipo: values.tipo,
     });
   });
 
@@ -99,6 +106,20 @@ export default function PartitaForm({ open, partita, onCancel, onSave }) {
               value={form.values.avversario}
               onChange={(e) => form.setField('avversario', e.target.value)}
               onBlur={onBlur('avversario')}
+            />
+          </Field>
+        </div>
+
+        <div className="sm:col-span-2">
+          <Field
+            label="Tipo di gara"
+            hint="In campionato i convocati sono limitati (12 di movimento + 2 liberi); nelle amichevoli non c'è limite e si possono convocare tutti."
+          >
+            <SegmentedControl
+              ariaLabel="Tipo di gara"
+              options={TIPI_PARTITA}
+              value={form.values.tipo}
+              onChange={(value) => form.setField('tipo', value)}
             />
           </Field>
         </div>

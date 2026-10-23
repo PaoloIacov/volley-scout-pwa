@@ -37,6 +37,7 @@ const ESITO_OFF = 'ring-1';
 export default function Inserimento({
   scout,
   giocatori,
+  formazione,
   numeroSel,
   setNumeroSel,
   azioneSel,
@@ -46,6 +47,7 @@ export default function Inserimento({
   onAnnullaUltimo,
   onRimuoviAzione,
   onRimuoviGenerico,
+  onRimuoviErroreAvversario,
 }) {
   const toast = useToast();
 
@@ -70,7 +72,7 @@ export default function Inserimento({
     ...numeri.filter((numero) => liberi.has(numero)).slice(0, 1),
   ];
   const configuratiInCampo = [
-    ...new Set((scout.inCampo ?? defaultInCampo).filter((numero) => numeriDisponibili.has(numero))),
+    ...new Set((formazione ?? scout.inCampo ?? defaultInCampo).filter((numero) => numeriDisponibili.has(numero))),
   ];
   const inCampo = osservaRosa
     ? [
@@ -138,10 +140,12 @@ export default function Inserimento({
     setAzioneSel(null);
   };
 
-  // Cronologia mista: azioni ed errori generici, dal più recente al più vecchio.
+  // Cronologia mista: azioni, errori generici ed errori avversari, dal più
+  // recente al più vecchio.
   const eventi = [
     ...scout.azioni.map((azione) => ({ ...azione, tipo: 'azione' })),
     ...(scout.generici ?? []).map((generico) => ({ ...generico, tipo: 'generico' })),
+    ...(scout.erroriAvversari ?? []).map((errore) => ({ ...errore, tipo: 'avversario' })),
   ].sort((a, b) => a.ts - b.ts);
   const ultimi = eventi.slice(-6).reverse();
   const ultimo = eventi[eventi.length - 1] ?? null;
@@ -315,7 +319,7 @@ export default function Inserimento({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-ink">Esito</h2>
             <p className="text-xs text-ink-mute">
-              Un tocco e il dato viene salvato · # +1 Noi, = +1 Loro
+              Un tocco e il dato viene salvato · # +1 Noi (tranne ricezione), = +1 Loro
             </p>
           </div>
           <div className="mt-2 grid grid-cols-4 gap-1.5 sm:mt-3 sm:gap-2">
@@ -344,10 +348,13 @@ export default function Inserimento({
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
           <p className="text-xs text-ink-soft">
             {ultimo ? (
-              ultimo.tipo === 'generico' ? (
+              ultimo.tipo === 'generico' || ultimo.tipo === 'avversario' ? (
                 <>
-                  Ultimo: <span className="font-semibold text-ink">Errore generico</span> · set{' '}
-                  {ultimo.set}
+                  Ultimo:{' '}
+                  <span className="font-semibold text-ink">
+                    {ultimo.tipo === 'avversario' ? 'Errore avversario' : 'Errore generico'}
+                  </span>{' '}
+                  · set {ultimo.set}
                 </>
               ) : (
                 <>
@@ -378,19 +385,34 @@ export default function Inserimento({
           ) : (
             <ul className="mt-2 space-y-1.5">
               {ultimi.map((evento) =>
-                evento.tipo === 'generico' ? (
+                evento.tipo === 'generico' || evento.tipo === 'avversario' ? (
                   <li
                     key={evento.id}
                     className="flex items-center gap-2 rounded-xl border border-line bg-panel-2 px-3 py-2"
                   >
-                    <span className="w-10 shrink-0 text-xs font-extrabold text-ko">ERR</span>
+                    <span
+                      className={`w-10 shrink-0 text-xs font-extrabold ${
+                        evento.tipo === 'avversario' ? 'text-ok' : 'text-ko'
+                      }`}
+                    >
+                      {evento.tipo === 'avversario' ? 'AVV' : 'ERR'}
+                    </span>
                     <span className="truncate text-sm text-ink-soft">
-                      Errore generico · set {evento.set}
+                      {evento.tipo === 'avversario' ? 'Errore avversario' : 'Errore generico'} · set{' '}
+                      {evento.set}
                     </span>
                     <button
                       type="button"
-                      aria-label="Rimuovi errore generico"
-                      onClick={() => onRimuoviGenerico(evento.id)}
+                      aria-label={
+                        evento.tipo === 'avversario'
+                          ? 'Rimuovi errore avversario'
+                          : 'Rimuovi errore generico'
+                      }
+                      onClick={() =>
+                        evento.tipo === 'avversario'
+                          ? onRimuoviErroreAvversario(evento.id)
+                          : onRimuoviGenerico(evento.id)
+                      }
                       className="ml-auto flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-mute transition-colors hover:bg-panel hover:text-accent-text"
                     >
                       <X size={14} />

@@ -173,6 +173,15 @@ export default function Calendario() {
                         Passata
                       </Badge>
                     )}
+                    <Badge
+                      className={
+                        partita.tipo === 'amichevole'
+                          ? 'bg-info/10 text-info ring-1 ring-info/30'
+                          : 'bg-panel-2 text-ink-soft ring-1 ring-line-strong'
+                      }
+                    >
+                      {partita.tipo === 'amichevole' ? 'Amichevole' : 'Campionato'}
+                    </Badge>
                   </div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
                     <span className="inline-flex items-center gap-1.5">

@@ -38,19 +38,56 @@ export function isAzione(value) {
 }
 
 /**
- * Punti generati automaticamente da un esito: il perfetto (#) segna per noi,
- * l'errore (=) segna per l'avversario; + e - non muovono il punteggio.
+ * Punti generati automaticamente da un esito: il perfetto (#) segna per noi
+ * solo per attacco, muro e battuta; la ricezione perfetta è un dato tecnico e
+ * non muove il punteggio. L'errore (=) segna sempre per l'avversario; + e -
+ * non muovono il punteggio.
+ *
+ * @param {string} esito codice esito (# + - =)
+ * @param {string} [azione] azione rilevata (ricezione, attacco, muro, battuta)
  */
-export function puntiPerEsito(esito) {
-  if (esito === '#') return { nostro: 1, loro: 0 };
+export function puntiPerEsito(esito, azione) {
+  if (esito === '#') return azione === 'ricezione' ? { nostro: 0, loro: 0 } : { nostro: 1, loro: 0 };
   if (esito === '=') return { nostro: 0, loro: 1 };
   return { nostro: 0, loro: 0 };
+}
+
+/**
+ * Stato del set secondo le regole della pallavolo: si chiude a 25 (15 nel
+ * tie-break) con almeno due punti di scarto. Finché lo scarto è di uno si è
+ * ai vantaggi: non esiste alcun tetto al punteggio.
+ *
+ * @param {{nostro:number, loro:number}} set punteggio del set
+ * @param {number} [nSet] numero del set (il quinto è il tie-break)
+ * @returns {{etichetta:string, tipo:'set-point'|'vantaggio'|'concluso'}|null}
+ */
+export function statoSet(set, nSet = 1) {
+  const nostro = Math.max(0, Number(set?.nostro) || 0);
+  const loro = Math.max(0, Number(set?.loro) || 0);
+  const traguardo = Number(nSet) >= 5 ? 15 : 25;
+  const massimo = Math.max(nostro, loro);
+  const minimo = Math.min(nostro, loro);
+  if (massimo >= traguardo && massimo - minimo >= 2) {
+    return { etichetta: 'Set concluso', tipo: 'concluso' };
+  }
+  if (massimo >= traguardo && massimo - minimo === 1) {
+    return { etichetta: 'Vantaggio', tipo: 'vantaggio' };
+  }
+  if (massimo >= traguardo - 1 && massimo - minimo >= 1) {
+    return { etichetta: 'Set point', tipo: 'set-point' };
+  }
+  return null;
 }
 
 /** Limite dei convocati: 12 di movimento più fino a 2 liberi. */
 export const MAX_MOVIMENTO = 12;
 export const MAX_LIBERI = 2;
 export const MAX_CONVOCATI = MAX_MOVIMENTO + MAX_LIBERI;
+
+/** In campo: 6 giocatori di movimento più un libero. */
+export const IN_CAMPO_MOVIMENTO = 6;
+export const IN_CAMPO_LIBERI = 1;
+export const TITOLARI = IN_CAMPO_MOVIMENTO + IN_CAMPO_LIBERI;
 
 /** True se il giocatore è di ruolo libero (il ruolo è case-insensitive). */
 export function isLibero(giocatore) {
@@ -61,19 +98,85 @@ export function isLibero(giocatore) {
   );
 }
 
-/** Numero di errori generici registrati (fuori dalle statistiche dei giocatori). */
+/** Numeri dei giocatori di ruolo libero. */
+export function numeriLiberi(giocatori) {
+  return new Set(
+    (Array.isArray(giocatori) ? giocatori : []).filter(isLibero).map((g) => g.numeroMaglia),
+  );
+}
+
+/**
+ * Compone una formazione valida per il campo: al massimo 6 giocatori di
+ * movimento e 1 libero, con il libero sempre in fondo (per la tabella).
+ * L'ordine dei giocatori di movimento resta quello ricevuto.
+ *
+ * @param {number[]} numeri numeri scelti
+ * @param {Array} giocatori rosa (per riconoscere i liberi)
+ * @returns {number[]}
+ */
+export function componiFormazione(numeri, giocatori) {
+  const liberi = numeriLiberi(giocatori);
+  const scelti = [...new Set((Array.isArray(numeri) ? numeri : []).map(Number))].filter(
+    (numero) => numero > 0,
+  );
+  const movimento = scelti.filter((numero) => !liberi.has(numero)).slice(0, IN_CAMPO_MOVIMENTO);
+  const portieri = scelti.filter((numero) => liberi.has(numero)).slice(0, IN_CAMPO_LIBERI);
+  return [...movimento, ...portieri];
+}
+
+/**
+ * Formazione predefinita: i primi 6 di movimento e il primo libero tra i
+ * numeri disponibili (di norma i convocati), nell'ordine ricevuto.
+ */
+export function formazionePredefinita(numeri, giocatori) {
+  return componiFormazione(numeri, giocatori);
+}
+
+/** Formazione scelta per un set (undefined se non ancora impostata). */
+export function formazioneDelSet(scout, setN) {
+  const voci = Array.isArray(scout?.formazioni) ? scout.formazioni : [];
+  return voci.find((voce) => Number(voce?.set) === Number(setN))?.numeri;
+}
+
+/** Restituisce l'elenco formazioni aggiornato con quella del set indicato. */
+export function impostaFormazione(scout, setN, numeri) {
+  const elenco = [...new Set((Array.isArray(numeri) ? numeri : []).map(Number))].filter(
+    (numero) => numero > 0,
+  );
+  const altre = (Array.isArray(scout?.formazioni) ? scout.formazioni : []).filter(
+    (voce) => Number(voce?.set) !== Number(setN),
+  );
+  return [...altre, { set: Number(setN), numeri: elenco }].sort((a, b) => a.set - b.set);
+}
+
+/** Numero di errori generici (punto all'avversario, fuori dalle statistiche). */
 export function contaGenerici(scout) {
   return Array.isArray(scout?.generici) ? scout.generici.length : 0;
 }
 
-/** Errori generici raggruppati per set: `[{ set, n }]` ordinati per set. */
-export function genericiPerSet(scout) {
+/** Numero di errori avversari (punto nostro, fuori dalle statistiche). */
+export function contaErroriAvversari(scout) {
+  return Array.isArray(scout?.erroriAvversari) ? scout.erroriAvversari.length : 0;
+}
+
+/** Eventi senza giocatore raggruppati per set: `[{ set, n }]` ordinati per set. */
+function eventiPerSet(eventi) {
   const conteggi = new Map();
-  (Array.isArray(scout?.generici) ? scout.generici : []).forEach((generico) => {
-    const set = Math.max(1, Number(generico?.set) || 1);
+  (Array.isArray(eventi) ? eventi : []).forEach((evento) => {
+    const set = Math.max(1, Number(evento?.set) || 1);
     conteggi.set(set, (conteggi.get(set) ?? 0) + 1);
   });
   return [...conteggi.entries()].sort((a, b) => a[0] - b[0]).map(([set, n]) => ({ set, n }));
+}
+
+/** Errori generici raggruppati per set: `[{ set, n }]` ordinati per set. */
+export function genericiPerSet(scout) {
+  return eventiPerSet(scout?.generici);
+}
+
+/** Errori avversari raggruppati per set: `[{ set, n }]` ordinati per set. */
+export function erroriAvversariPerSet(scout) {
+  return eventiPerSet(scout?.erroriAvversari);
 }
 
 function cellaVuota() {

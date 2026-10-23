@@ -1,6 +1,6 @@
 import { readJSON, writeJSON } from '../lib/storage.js';
 import { toISO } from '../lib/dates.js';
-import { isAzione, isEsito } from '../lib/scout-stats.js';
+import { TITOLARI, isAzione, isEsito } from '../lib/scout-stats.js';
 
 const STORAGE_KEY = 'scout';
 
@@ -46,8 +46,8 @@ function normalizeSet(voce, indice) {
   };
 }
 
-/** Errore generico: punto all'avversario senza giocatore associato. */
-function normalizeGenerico(voce) {
+/** Evento senza giocatore: errore generico o errore avversario. */
+function normalizeEvento(voce) {
   if (!voce) return null;
   return {
     id: voce.id ? String(voce.id) : newId(),
@@ -76,6 +76,32 @@ function normalizeOrdine(value) {
   return numeri.length > 0 ? numeri : undefined;
 }
 
+/** Formazioni per set: `[{ set, numeri }]`, al massimo 7 titolari per set. */
+function normalizeFormazioni(value) {
+  if (!Array.isArray(value)) return undefined;
+  const perSet = new Map();
+  value.forEach((voce) => {
+    const set = Math.max(1, Number(voce?.set) || 1);
+    const numeri = [
+      ...new Set(
+        (Array.isArray(voce?.numeri) ? voce.numeri : [])
+          .map((n) => num(n))
+          .filter((n) => n > 0),
+      ),
+    ].slice(0, TITOLARI);
+    if (numeri.length > 0) perSet.set(set, numeri);
+  });
+  if (perSet.size === 0) return undefined;
+  return [...perSet.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([set, numeri]) => ({ set, numeri }));
+}
+
+/** Tipo di gara: campionato (limiti convocati) o amichevole (senza limiti). */
+function normalizeTipo(value) {
+  return value === 'amichevole' ? 'amichevole' : 'campionato';
+}
+
 /** Normalizza il record scout prima del salvataggio. */
 function normalizeScout(scout) {
   const sets = isList(scout?.sets).map(normalizeSet);
@@ -87,19 +113,25 @@ function normalizeScout(scout) {
     orarioInizio: String(scout?.orarioInizio ?? '').trim(),
     avversario: String(scout?.avversario ?? '').trim(),
     luogo: String(scout?.luogo ?? '').trim(),
+    /** Tipo di gara: campionato o amichevole. */
+    tipo: normalizeTipo(scout?.tipo),
     /** Quale delle due squadre si sta osservando. */
     squadraOsservata: scout?.squadraOsservata === 'avversaria' ? 'avversaria' : 'propria',
     /** Numeri convocati alla gara (undefined = tutta la rosa). */
     convocati: normalizeConvocati(scout?.convocati),
     /** Numeri attualmente in campo (undefined = formazione predefinita). */
     inCampo: normalizeInCampo(scout?.inCampo),
+    /** Titolari scelti all'inizio di ogni set: `[{ set, numeri }]`. */
+    formazioni: normalizeFormazioni(scout?.formazioni),
     /** Ordine con cui elencare i giocatori (undefined = per numero di maglia). */
     ordineGiocatori: normalizeOrdine(scout?.ordineGiocatori),
     setCorrente: Math.max(1, Number(scout?.setCorrente) || 1),
     sets: sets.length > 0 ? sets : [normalizeSet(null, 0)],
     azioni: isList(scout?.azioni).map(normalizeAzione).filter(Boolean),
     /** Errori generici: punto avversario senza giocatore. */
-    generici: isList(scout?.generici).map(normalizeGenerico).filter(Boolean),
+    generici: isList(scout?.generici).map(normalizeEvento).filter(Boolean),
+    /** Errori avversari: punto nostro senza giocatore. */
+    erroriAvversari: isList(scout?.erroriAvversari).map(normalizeEvento).filter(Boolean),
     aggiornato: Number(scout?.aggiornato) || Date.now(),
   };
 }
@@ -125,7 +157,14 @@ export function getScout(id) {
 
 /** Crea e salva un nuovo scout, restituendo il record pronto. */
 export function creaScout(dati) {
-  const scout = normalizeScout({ ...dati, id: undefined, azioni: [], generici: [], sets: null });
+  const scout = normalizeScout({
+    ...dati,
+    id: undefined,
+    azioni: [],
+    generici: [],
+    erroriAvversari: [],
+    sets: null,
+  });
   const list = tutti();
   list.push(scout);
   writeJSON(STORAGE_KEY, list);

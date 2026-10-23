@@ -130,7 +130,18 @@ export default function Home() {
         {prossima ? (
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="rounded-2xl border border-line bg-panel-2 p-4">
-              <p className="text-lg font-semibold text-ink">vs {prossima.avversario}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-lg font-semibold text-ink">vs {prossima.avversario}</p>
+                <Badge
+                  className={
+                    prossima.tipo === 'amichevole'
+                      ? 'bg-info/10 text-info ring-1 ring-info/30'
+                      : 'bg-panel text-ink-soft ring-1 ring-line-strong'
+                  }
+                >
+                  {prossima.tipo === 'amichevole' ? 'Amichevole' : 'Campionato'}
+                </Badge>
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarDays size={13} className="text-accent-text" />

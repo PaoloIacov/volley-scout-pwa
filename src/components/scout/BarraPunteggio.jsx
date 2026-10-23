@@ -1,6 +1,7 @@
 import { Plus, X } from 'lucide-react';
 import { Card, IconButton } from '../ui.jsx';
 import { SET_MASSIMO } from '../../services/scout.js';
+import { statoSet } from '../../lib/scout-stats.js';
 
 function clampPunteggio(value) {
   const parsed = Number.parseInt(value, 10);
@@ -24,10 +25,17 @@ export default function BarraPunteggio({
   onSelezionaSet,
   onAggiungiSet,
   onErroreGenerico,
+  onErroreAvversario,
   onEliminaSet,
 }) {
   const setAttivo = scout.sets.find((set) => set.n === scout.setCorrente) ?? scout.sets[0];
   const piuSet = scout.sets.length < SET_MASSIMO;
+  const stato = statoSet(setAttivo, setAttivo.n);
+  const STILE_STATO = {
+    vantaggio: 'bg-warn/10 text-warn ring-warn/30',
+    'set-point': 'bg-info/10 text-info ring-info/30',
+    concluso: 'bg-ok/10 text-ok ring-ok/30',
+  };
 
   const squadre = [
     { campo: 'nostro', label: 'Noi', aria: 'nostro' },
@@ -35,9 +43,9 @@ export default function BarraPunteggio({
   ];
 
   return (
-    <Card className="sticky top-16 z-30 flex flex-wrap items-center gap-1 px-1.5 py-1 sm:gap-2 sm:px-2.5 sm:py-1.5">
+    <Card className="flex flex-wrap items-center gap-1 px-1.5 py-1 sm:gap-2 sm:px-2.5 sm:py-1.5">
       {/* Il gruppo dei set resta della sua larghezza: così la parte punteggio
-          (con l'errore generico) sta tutta su una riga anche sui tablet. */}
+          (con i tasti errore) sta tutta su una riga anche sui tablet. */}
       <div className="flex w-full min-w-0 flex-nowrap items-center gap-1 sm:w-auto sm:gap-1.5">
         <span className="mr-0.5 hidden text-[10px] font-semibold uppercase tracking-wider text-ink-mute sm:inline">
           Set
@@ -145,6 +153,24 @@ export default function BarraPunteggio({
           Errore generico
           <span className="text-[10px] font-medium opacity-70">+1 Loro</span>
         </button>
+        <button
+          type="button"
+          aria-label="Errore avversario"
+          title="Dà un punto a noi e registra un errore avversario, senza toccare le statistiche dei giocatori"
+          onClick={onErroreAvversario}
+          className="flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl border border-ok/45 bg-ok/10 px-1.5 text-[10px] font-semibold text-ok transition-colors duration-150 hover:bg-ok/15 sm:h-9 sm:gap-1.5 sm:px-2.5 sm:text-xs"
+        >
+          Errore avversario
+          <span className="text-[10px] font-medium opacity-70">+1 Noi</span>
+        </button>
+        {stato && (
+          <span
+            title="Il punteggio non ha limiti: oltre il 25 si continua ai vantaggi finché non c'è uno scarto di 2 punti."
+            className={`inline-flex h-8 shrink-0 items-center rounded-xl px-2 text-[10px] font-bold uppercase tracking-wider ring-1 sm:h-9 sm:text-[11px] ${STILE_STATO[stato.tipo]}`}
+          >
+            {stato.etichetta}
+          </span>
+        )}
       </div>
     </Card>
   );

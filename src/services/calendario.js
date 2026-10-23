@@ -21,6 +21,7 @@ function normalizePartita(partita) {
     luogo: String(partita.luogo ?? '').toLowerCase().trim(),
     data: toISO(partita.data),
     orarioInizio: String(partita.orarioInizio ?? '').trim(),
+    tipo: partita.tipo === 'amichevole' ? 'amichevole' : 'campionato',
   };
 }
 
