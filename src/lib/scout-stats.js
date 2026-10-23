@@ -184,6 +184,31 @@ function cellaVuota() {
 }
 
 /**
+ * Sintesi di un giocatore (o dei totali di squadra) a partire dalle celle per
+ * azione restituite da `costruisciRiepilogo`.
+ *
+ * - Punti fatti: i `#` di attacco, muro e battuta (la ricezione perfetta è un
+ *   dato tecnico e non assegna punto).
+ * - Errori fatti: tutti i `=` (ricezione, attacco, muro, battuta).
+ * - Palloni attaccati: tutte le azioni di attacco, qualunque sia l'esito.
+ *
+ * @param {object} celle oggetto `{ ricezione, attacco, muro, battuta }`
+ * @returns {{puntiFatti:number, erroriFatti:number, palloniAttaccati:number}}
+ */
+export function sintesiCelle(celle) {
+  const vuota = cellaVuota();
+  const ricezione = celle?.ricezione ?? vuota;
+  const attacco = celle?.attacco ?? vuota;
+  const muro = celle?.muro ?? vuota;
+  const battuta = celle?.battuta ?? vuota;
+  return {
+    puntiFatti: attacco['#'] + muro['#'] + battuta['#'],
+    erroriFatti: ricezione['='] + attacco['='] + muro['='] + battuta['='],
+    palloniAttaccati: attacco.tot,
+  };
+}
+
+/**
  * Ordina un elenco di numeri di maglia secondo l'ordine personalizzato salvato
  * nello scout: chi è nell'ordine segue quella sequenza, gli altri (numeri nuovi
  * o non presenti) restano in coda in ordine numerico crescente.
@@ -206,11 +231,16 @@ export function ordinaNumeri(numeri, ordine) {
  *
  * @param {object} scout record scout
  * @param {Array} giocatori rosa della squadra che possiede lo scout
+ * @param {number|null} [setN] se indicato, considera solo le azioni di quel set
  * @returns {{ righe: Array, totali: object, totaliPerEsito: object }}
  */
-export function costruisciRiepilogo(scout, giocatori) {
+export function costruisciRiepilogo(scout, giocatori, setN = null) {
   const osservaRosa = scout.squadraOsservata === 'propria';
   const rosa = Array.isArray(giocatori) ? giocatori : [];
+  const azioni =
+    setN === null || setN === undefined
+      ? scout.azioni
+      : scout.azioni.filter((azione) => Number(azione.set) === Number(setN));
   const nomi = new Map(
     rosa.map((giocatore) => [
       giocatore.numeroMaglia,
@@ -232,11 +262,11 @@ export function costruisciRiepilogo(scout, giocatori) {
       }
     });
   }
-  scout.azioni.forEach((azione) => numeri.add(azione.numero));
+  azioni.forEach((azione) => numeri.add(azione.numero));
 
   const righe = ordinaNumeri([...numeri], scout?.ordineGiocatori).map((numero) => {
     const celle = Object.fromEntries(AZIONI.map((azione) => [azione.id, cellaVuota()]));
-    scout.azioni
+    azioni
       .filter((azione) => azione.numero === numero)
       .forEach((azione) => {
         const cella = celle[azione.azione];

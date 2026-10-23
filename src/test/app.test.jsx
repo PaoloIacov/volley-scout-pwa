@@ -746,6 +746,208 @@ describe('scout', () => {
     expect(screen.getByText('Legenda:')).toBeInTheDocument();
   });
 
+  it('lega i numeri del riepilogo al set selezionato', () => {
+    seedScout({
+      sets: [
+        { n: 1, nostro: 1, loro: 0 },
+        { n: 2, nostro: 1, loro: 0 },
+      ],
+      setCorrente: 1,
+      azioni: [
+        { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '#' },
+        { id: 'a2', ts: 2, set: 2, numero: 10, azione: 'muro', esito: '#' },
+        { id: 'a3', ts: 3, set: 2, numero: 10, azione: 'muro', esito: '+' },
+      ],
+      formazioni: [
+        { set: 1, numeri: [10] },
+        { set: 2, numeri: [10] },
+      ],
+    });
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+
+    const leggiRiga = () => {
+      const tabella = screen.getByRole('table');
+      const riga = within(tabella)
+        .getAllByRole('row')
+        .find((row) => within(row).queryByText('Mario Rossi'));
+      const celle = within(riga).getAllByRole('cell');
+      return {
+        attacco: celle.slice(5, 9).map((cell) => cell.textContent),
+        muro: celle.slice(9, 13).map((cell) => cell.textContent),
+      };
+    };
+
+    // Set 1: solo l'attacco perfetto; il muro del set 2 non compare.
+    expect(leggiRiga().attacco).toEqual(['1', '·', '·', '·']);
+    expect(leggiRiga().muro).toEqual(['·', '·', '·', '·']);
+
+    // Cambiando set dalla barra del punteggio la tabella mostra i suoi numeri.
+    fireEvent.click(screen.getByRole('button', { name: 'Set 2' }));
+    expect(leggiRiga().attacco).toEqual(['·', '·', '·', '·']);
+    expect(leggiRiga().muro).toEqual(['1', '1', '·', '·']);
+  });
+
+  it('svuota la tabella del riepilogo quando si aggiunge un nuovo set', () => {
+    seedScout({
+      sets: [{ n: 1, nostro: 1, loro: 0 }],
+      setCorrente: 1,
+      azioni: [{ id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '#' }],
+      formazioni: [{ set: 1, numeri: [10] }],
+    });
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
+    const celleAttacco = () => {
+      const tabella = screen.getByRole('table');
+      const riga = within(tabella)
+        .getAllByRole('row')
+        .find((row) => within(row).queryByText('Mario Rossi'));
+      return within(riga)
+        .getAllByRole('cell')
+        .slice(5, 9)
+        .map((cell) => cell.textContent);
+    };
+
+    expect(celleAttacco()).toEqual(['1', '·', '·', '·']);
+
+    // Il nuovo set parte da zero e propone la formazione del set precedente.
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi set' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma titolari' }));
+    expect(celleAttacco()).toEqual(['·', '·', '·', '·']);
+  });
+
+  it('mostra i totali di tutti i convocati per partita e per set', () => {
+    seedScout({
+      sets: [
+        { n: 1, nostro: 2, loro: 0 },
+        { n: 2, nostro: 1, loro: 1 },
+      ],
+      setCorrente: 1,
+      azioni: [
+        // Set 1
+        { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '#' },
+        { id: 'a2', ts: 2, set: 1, numero: 10, azione: 'attacco', esito: '=' },
+        { id: 'a3', ts: 3, set: 1, numero: 10, azione: 'ricezione', esito: '#' },
+        { id: 'a4', ts: 4, set: 1, numero: 10, azione: 'muro', esito: '#' },
+        { id: 'a5', ts: 5, set: 1, numero: 10, azione: 'battuta', esito: '+' },
+        { id: 'a6', ts: 6, set: 1, numero: 4, azione: 'ricezione', esito: '=' },
+        { id: 'a7', ts: 7, set: 1, numero: 4, azione: 'attacco', esito: '+' },
+        // Set 2
+        { id: 'a8', ts: 8, set: 2, numero: 10, azione: 'attacco', esito: '#' },
+        { id: 'a9', ts: 9, set: 2, numero: 10, azione: 'attacco', esito: '-' },
+        { id: 'a10', ts: 10, set: 2, numero: 10, azione: 'battuta', esito: '=' },
+        { id: 'a11', ts: 11, set: 2, numero: 10, azione: 'muro', esito: '+' },
+        { id: 'a12', ts: 12, set: 2, numero: 4, azione: 'ricezione', esito: '#' },
+        { id: 'a13', ts: 13, set: 2, numero: 4, azione: 'attacco', esito: '=' },
+        { id: 'a14', ts: 14, set: 2, numero: 7, azione: 'battuta', esito: '#' },
+      ],
+      formazioni: [
+        { set: 1, numeri: [10, 4] },
+        { set: 2, numeri: [10, 4] },
+      ],
+    });
+    seedRosaEstesa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Totali' }));
+
+    const rigaDi = (tabella, nome) =>
+      within(tabella)
+        .getAllByRole('row')
+        .find((row) => within(row).queryByText(nome));
+    const azioniDi = (celle) => ({
+      ricezione: celle.slice(1, 5).map((c) => c.textContent),
+      attacco: celle.slice(5, 9).map((c) => c.textContent),
+      muro: celle.slice(9, 13).map((c) => c.textContent),
+      battuta: celle.slice(13, 17).map((c) => c.textContent),
+      sintesi: celle.slice(17, 20).map((c) => c.textContent),
+    });
+
+    // Vista partita: suddivisione completa + sintesi per tutti i convocati.
+    let dettaglio = screen.getByRole('table', { name: 'Totali partita' });
+    expect(azioniDi(within(rigaDi(dettaglio, 'Mario Rossi')).getAllByRole('cell'))).toEqual({
+      ricezione: ['1', '·', '·', '·'],
+      attacco: ['2', '·', '1', '1'],
+      muro: ['1', '1', '·', '·'],
+      battuta: ['·', '1', '·', '1'],
+      sintesi: ['3', '2', '4'],
+    });
+    expect(azioniDi(within(rigaDi(dettaglio, 'Luca Neri')).getAllByRole('cell'))).toEqual({
+      ricezione: ['1', '·', '·', '1'],
+      attacco: ['·', '1', '·', '1'],
+      muro: ['·', '·', '·', '·'],
+      battuta: ['·', '·', '·', '·'],
+      sintesi: ['0', '2', '2'],
+    });
+    expect(azioniDi(within(rigaDi(dettaglio, 'Paolo Bianchi')).getAllByRole('cell'))).toEqual({
+      ricezione: ['·', '·', '·', '·'],
+      attacco: ['·', '·', '·', '·'],
+      muro: ['·', '·', '·', '·'],
+      battuta: ['1', '·', '·', '·'],
+      sintesi: ['1', '0', '0'],
+    });
+
+    // Totale squadra della partita.
+    const totalePartita = within(dettaglio).getAllByRole('row').at(-1);
+    expect(azioniDi(within(totalePartita).getAllByRole('cell'))).toEqual({
+      ricezione: ['2', '·', '·', '1'],
+      attacco: ['2', '1', '1', '2'],
+      muro: ['1', '1', '·', '·'],
+      battuta: ['1', '1', '·', '1'],
+      sintesi: ['4', '4', '6'],
+    });
+
+    // Vista set 1: stessi numeri ma solo per il set.
+    fireEvent.click(screen.getByRole('radio', { name: 'Set 1' }));
+    dettaglio = screen.getByRole('table', { name: 'Totali set 1' });
+    expect(azioniDi(within(rigaDi(dettaglio, 'Mario Rossi')).getAllByRole('cell'))).toEqual({
+      ricezione: ['1', '·', '·', '·'],
+      attacco: ['1', '·', '·', '1'],
+      muro: ['1', '·', '·', '·'],
+      battuta: ['·', '1', '·', '·'],
+      sintesi: ['2', '1', '2'],
+    });
+    expect(azioniDi(within(rigaDi(dettaglio, 'Luca Neri')).getAllByRole('cell'))).toEqual({
+      ricezione: ['·', '·', '·', '1'],
+      attacco: ['·', '1', '·', '·'],
+      muro: ['·', '·', '·', '·'],
+      battuta: ['·', '·', '·', '·'],
+      sintesi: ['0', '1', '1'],
+    });
+    const totaleSet1 = within(dettaglio).getAllByRole('row').at(-1);
+    expect(azioniDi(within(totaleSet1).getAllByRole('cell')).sintesi).toEqual(['2', '2', '3']);
+
+    // Vista set 2: i punti di Paolo arrivano dalla battuta, non dall'attacco.
+    fireEvent.click(screen.getByRole('radio', { name: 'Set 2' }));
+    dettaglio = screen.getByRole('table', { name: 'Totali set 2' });
+    expect(azioniDi(within(rigaDi(dettaglio, 'Mario Rossi')).getAllByRole('cell')).sintesi).toEqual([
+      '1',
+      '1',
+      '2',
+    ]);
+    expect(azioniDi(within(rigaDi(dettaglio, 'Paolo Bianchi')).getAllByRole('cell')).sintesi).toEqual([
+      '1',
+      '0',
+      '0',
+    ]);
+
+    // Matrice per set: ogni giocatore ha il numero di azioni di set 1, set 2 e partita.
+    const matrice = screen.getByRole('table', { name: 'Totali per set' });
+    expect(
+      within(rigaDi(matrice, 'Mario Rossi')).getAllByRole('cell').slice(1).map((c) => c.textContent),
+    ).toEqual(['5', '4', '9']);
+    expect(
+      within(rigaDi(matrice, 'Luca Neri')).getAllByRole('cell').slice(1).map((c) => c.textContent),
+    ).toEqual(['2', '2', '4']);
+    expect(
+      within(rigaDi(matrice, 'Paolo Bianchi')).getAllByRole('cell').slice(1).map((c) => c.textContent),
+    ).toEqual(['0', '1', '1']);
+  });
+
   it("non offre l'export quando non ci sono dati", () => {
     seedScout();
     renderAt('/scout/sc1');
@@ -814,6 +1016,8 @@ describe('scout', () => {
     });
     seedRosa();
     renderAt('/scout/sc1');
+    // Al primo set senza formazione la scelta dei titolari si apre subito.
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma titolari' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Errore generico' }));
 
@@ -941,6 +1145,8 @@ describe('scout', () => {
     seedScout({ convocati: [4, 10] });
     seedRosaEstesa();
     renderAt('/scout/sc1');
+    // Il primo set senza formazione chiede subito i titolari tra i convocati.
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma titolari' }));
 
     expect(screen.getByRole('button', { name: 'Giocatore 4' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Giocatore 10' })).toBeInTheDocument();
@@ -1091,6 +1297,35 @@ describe('scout', () => {
     expect(formazione2.numeri).toContain(7);
     expect(formazione2.numeri).not.toContain(1);
     expect(scout.setCorrente).toBe(2);
+  });
+
+  it('fa scegliere i 7 titolari anche per il primo set', () => {
+    seedScout();
+    seedRosaGrande();
+    renderAt('/scout/sc1');
+
+    const dialog = screen.getByRole('dialog', { name: 'Titolari del set 1' });
+    // La proposta è la formazione predefinita tra i convocati: 1-6 + 14.
+    expect(
+      within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(dialog).getByRole('button', { name: 'Titolare Luca Neri' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    // Si può cambiare: fuori l'1, dentro il 7.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Titolare Giocatore7 Rossi7' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Conferma titolari' }));
+
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    const formazione1 = scout.formazioni.find((voce) => voce.set === 1);
+    expect(formazione1.numeri).toContain(7);
+    expect(formazione1.numeri).not.toContain(1);
+    expect(scout.inCampo).toEqual(formazione1.numeri);
+    expect(
+      screen.queryByRole('dialog', { name: 'Titolari del set 1' }),
+    ).not.toBeInTheDocument();
   });
 
   it('elenca gli scout e consente di eliminarli con conferma', async () => {

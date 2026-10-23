@@ -19,6 +19,7 @@ import { Badge, ConfirmDialog, IconButton, SegmentedControl } from '../component
 import BarraPunteggio from '../components/scout/BarraPunteggio.jsx';
 import Inserimento from '../components/scout/Inserimento.jsx';
 import Riepilogo from '../components/scout/Riepilogo.jsx';
+import Totali from '../components/scout/Totali.jsx';
 import AzioniRiepilogo from '../components/scout/AzioniRiepilogo.jsx';
 import FormazioneModal from '../components/scout/FormazioneModal.jsx';
 
@@ -47,11 +48,23 @@ function applicaPunti(sets, setN, deltaNostro, deltaLoro) {
 const TABS = [
   { value: 'inserimento', label: 'Inserimento' },
   { value: 'riepilogo', label: 'Riepilogo' },
+  { value: 'totali', label: 'Totali' },
 ];
 
 /**
- * Schermata di scouting: punteggio sempre visibile e due tab,
- * Inserimento (touch friendly) e Riepilogo. Ogni modifica è salvata
+ * Set per cui va scelta la formazione appena si apre lo scout: il primo set
+ * (o quello corrente) se non ha ancora titolari salvati. Così anche il set 1
+ * chiede subito i 7 titolari, come i set successivi.
+ */
+function setDaFormare(scout) {
+  if (!scout || scout.squadraOsservata !== 'propria') return null;
+  if (getGiocatori(scout.squadraId).length === 0) return null;
+  return formazioneDelSet(scout, scout.setCorrente) ? null : scout.setCorrente;
+}
+
+/**
+ * Schermata di scouting: punteggio sempre visibile e tre tab,
+ * Inserimento (touch friendly), Riepilogo e Totali. Ogni modifica è salvata
  * subito in localStorage: si può uscire e rientrare senza perdere i dati.
  */
 export default function ScoutSessione() {
@@ -64,7 +77,7 @@ export default function ScoutSessione() {
   /** Set in attesa di conferma per l'eliminazione (null = nessuna). */
   const [setDaEliminare, setSetDaEliminare] = useState(null);
   /** Set per cui si stanno scegliendo i 7 titolari (null = modale chiusa). */
-  const [setFormazione, setSetFormazione] = useState(null);
+  const [setFormazione, setSetFormazione] = useState(() => setDaFormare(scout));
 
   /** Applica la modifica, la salva subito e aggiorna lo stato. */
   const aggiorna = (next) => setScout(salvaScout(next));
@@ -393,7 +406,7 @@ export default function ScoutSessione() {
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SegmentedControl ariaLabel="Sezione scout" options={TABS} value={tab} onChange={setTab} />
-          {tab === 'riepilogo' && !riepilogoVuoto && (
+          {tab !== 'inserimento' && !riepilogoVuoto && (
             <AzioniRiepilogo
               scout={scout}
               giocatori={giocatori}
@@ -421,7 +434,7 @@ export default function ScoutSessione() {
           onRimuoviGenerico={rimuoviGenerico}
           onRimuoviErroreAvversario={rimuoviErroreAvversario}
         />
-      ) : (
+      ) : tab === 'riepilogo' ? (
         <Riepilogo
           scout={scout}
           giocatori={giocatori}
@@ -430,6 +443,8 @@ export default function ScoutSessione() {
           onSostituisci={sostituisci}
           onScegliFormazione={() => setSetFormazione(scout.setCorrente)}
         />
+      ) : (
+        <Totali scout={scout} giocatori={giocatori} />
       )}
 
       <FormazioneModal

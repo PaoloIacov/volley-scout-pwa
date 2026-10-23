@@ -82,12 +82,15 @@ export default function Riepilogo({
   onSostituisci,
   onScegliFormazione,
 }) {
-  const { righe, totali } = costruisciRiepilogo(scout, giocatori);
+  // La tabella è sempre riferita al set attivo: cambiando set i numeri cambiano.
+  const { righe, totali } = costruisciRiepilogo(scout, giocatori, scout.setCorrente);
   const totaleGenerale = AZIONI.reduce((somma, azione) => somma + totali[azione.id].tot, 0);
   const generici = genericiPerSet(scout);
   const totGenerici = contaGenerici(scout);
   const erroriAvversari = erroriAvversariPerSet(scout);
   const totAvversari = contaErroriAvversari(scout);
+  const genericiSet = generici.find((voce) => voce.set === scout.setCorrente)?.n ?? 0;
+  const avversariSet = erroriAvversari.find((voce) => voce.set === scout.setCorrente)?.n ?? 0;
   const puntiNoi = scout.sets.reduce((somma, set) => somma + (Number(set.nostro) || 0), 0);
   const quotaAvversari =
     puntiNoi > 0 ? Math.min(100, Math.round((totAvversari / puntiNoi) * 100)) : 0;
@@ -132,7 +135,7 @@ export default function Riepilogo({
     setUscita(null);
   };
 
-  if (righe.length === 0 && totGenerici === 0 && totAvversari === 0) {
+  if (righe.length === 0 && genericiSet === 0 && avversariSet === 0) {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-panel-2 text-ink-soft ring-1 ring-line">
@@ -140,8 +143,8 @@ export default function Riepilogo({
         </div>
         <p className="font-medium text-ink">Nessun dato rilevato</p>
         <p className="max-w-sm text-sm text-ink-mute">
-          Passa alla tab Inserimento, oppure torna qui: toccando una cella registri il dato
-          direttamente.
+          In questo set non ci sono ancora dati. Passa alla tab Inserimento, cambia set dalla
+          barra del punteggio oppure torna qui: toccando una cella registri il dato direttamente.
         </p>
       </Card>
     );
@@ -150,22 +153,29 @@ export default function Riepilogo({
   return (
     <>
       <Card className="overflow-hidden p-0">
-        {inFormazione && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-panel-2 px-3 py-2 text-xs text-ink-soft">
-            <span>
-              <span className="font-semibold uppercase tracking-wider text-ink">Titolari</span>{' '}
-              del set {scout.setCorrente}: {formazione.length}/7 · tocca
-              <ArrowLeftRight size={12} className="mx-1 inline" aria-hidden="true" />
-              per sostituire
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-panel-2 px-3 py-2 text-xs text-ink-soft">
+          <span>
+            <span className="font-semibold uppercase tracking-wider text-ink">
+              Set {scout.setCorrente}
             </span>
-            {onScegliFormazione && (
-              <Button variant="outline" size="sm" onClick={onScegliFormazione}>
-                <UsersRound size={14} />
-                Cambia titolari
-              </Button>
+            {inFormazione ? (
+              <>
+                {' '}
+                · Titolari: {formazione.length}/7 · tocca
+                <ArrowLeftRight size={12} className="mx-1 inline" aria-hidden="true" />
+                per sostituire
+              </>
+            ) : (
+              <> · statistiche del set</>
             )}
-          </div>
-        )}
+          </span>
+          {inFormazione && onScegliFormazione && (
+            <Button variant="outline" size="sm" onClick={onScegliFormazione}>
+              <UsersRound size={14} />
+              Cambia titolari
+            </Button>
+          )}
+        </div>
 
         <div className="max-h-[calc(100dvh-13rem)] overflow-auto">
           <table className="w-full min-w-[820px] border-separate border-spacing-0 text-left">
@@ -348,12 +358,11 @@ export default function Riepilogo({
           </span>
         </div>
 
-        {inFormazione && (
-          <p className="border-t border-line bg-panel-2 px-4 py-2 text-[11px] text-ink-mute">
-            La tabella mostra i 7 titolari del set {scout.setCorrente}. I dati degli altri
-            giocatori restano nei totali di squadra e nell&apos;export Excel/PDF.
-          </p>
-        )}
+        <p className="border-t border-line bg-panel-2 px-4 py-2 text-[11px] text-ink-mute">
+          La tabella mostra i numeri del set {scout.setCorrente}
+          {inFormazione ? ` per i 7 titolari scelti` : ''}. Cambia set dalla barra del punteggio;
+          i totali di tutti i convocati e della partita sono nella tab Totali.
+        </p>
       </Card>
 
       <Modal

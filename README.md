@@ -41,14 +41,21 @@ e design system a token condivisi.
   assegna un punto solo per attacco, muro e battuta (la ricezione perfetta non
   muove il punteggio), mentre `=` assegna sempre un punto all'avversario;
   annulla/rimuovi riportano indietro il punto.
-  A ogni set si scelgono i 7 titolari (6 di movimento + 1 libero), mostrati in
-  cima al riepilogo con il libero in fondo. Nel riepilogo non si trascina più:
-  il pulsante accanto al giocatore apre la sostituzione con la panchina,
-  mantenendo il vincolo 6 + 1. La tabella mostra solo i 7 titolari del set
-  attivo e non ha più la colonna Tot (resta negli export) per evitare
-  slittamenti. Punteggio, tab e "Annulla ultimo" restano sticky; le label
-  delle azioni hanno contrasto e separatori più marcati e l'intestazione della
-  tabella è sticky. Le sostituzioni funzionano anche nella tab Inserimento,
+  A ogni set, compreso il primo appena creato, si scelgono i 7 titolari (6 di
+  movimento + 1 libero), mostrati in cima al riepilogo con il libero in fondo.
+  Nel riepilogo non si trascina più: il pulsante accanto al giocatore apre la
+  sostituzione con la panchina, mantenendo il vincolo 6 + 1. La tabella mostra
+  solo i 7 titolari del set attivo, con i numeri legati al set selezionato:
+  cambiando set dalla barra del punteggio (o aggiungendone uno nuovo) i dati si
+  aggiornano. La tab Totali
+  replica la suddivisione Ricezione / Attacco / Muro / Battuta per tutti i
+  convocati e aggiunge, per ogni giocatore, Punti fatti (i `#` di attacco, muro
+  e battuta), Errori fatti (tutti i `=`) e Palloni attaccati (tutte le azioni di
+  attacco). Il selettore Partita / Set N e la matrice mostrano i dati
+  dell'intera partita e dei singoli set. Punteggio, tab e "Annulla ultimo"
+  restano sticky; le label delle azioni hanno contrasto e separatori più
+  marcati e l'intestazione della tabella è sticky. Le sostituzioni funzionano
+  anche nella tab Inserimento,
   toccando un giocatore in campo e poi uno in panchina. Ci sono poi i tasti
   "Errore generico" (punto all'avversario) e "Errore avversario" (punto a noi):
   vengono contati a parte senza toccare le statistiche dei giocatori, così nel
@@ -56,14 +63,14 @@ e design system a token condivisi.
   (con percentuale sul totale). I set si aggiungono ma anche si
   eliminano dall'elenco in alto (con conferma se contengono dati). I liberi
   hanno card riconoscibili e non registrano battuta né muro; i dati vengono
-  salvati a ogni tocco, si può uscire e rientrare senza perdere nulla. Dal tab
-  Riepilogo si scoutizza anche toccando direttamente le celle
+  salvati a ogni tocco, si può uscire e rientrare senza perdere nulla. Dalla
+  tab Riepilogo si scoutizza anche toccando direttamente le celle
   (giocatore × azione × esito).
-- **Export scout**: dal tab Riepilogo si esporta il riepilogo sintetico (info
-  partita e tipo di gara, punteggi dei set, tabella per giocatore con
-  sotto-colonne di esito colorate, Tot compreso, errori generici e punti da
-  errori avversari) in Excel (.xlsx) o PDF: le librerie di export vengono
-  caricate solo al momento del download
+- **Export scout**: dalle tab Riepilogo e Totali si esporta il riepilogo
+  sintetico (info partita e tipo di gara, punteggi dei set, tabella per
+  giocatore con sotto-colonne di esito colorate, Tot compreso, errori generici
+  e punti da errori avversari) in Excel (.xlsx) o PDF: le librerie di export
+  vengono caricate solo al momento del download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
   (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)
