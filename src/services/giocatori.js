@@ -2,6 +2,14 @@ import { readJSON, writeJSON } from '../lib/storage.js';
 
 const STORAGE_KEY = 'giocatori';
 
+/** Identificativo univoco (con fallback dove crypto.randomUUID non esiste). */
+function newId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /** Prima lettera maiuscola di ogni parola. */
 function capitalize(str) {
   if (!str) return str;
@@ -12,14 +20,21 @@ function capitalize(str) {
     .join(' ');
 }
 
-/** Normalizza il giocatore prima del salvataggio (minuscolo, trim). */
+/**
+ * Normalizza il giocatore prima del salvataggio (minuscolo, trim).
+ * Conserva l'identificativo esistente: serve a collegare il profilo alle
+ * statistiche e a non perdere il riferimento quando si modifica un giocatore.
+ */
 function normalizeGiocatore(giocatore) {
   return {
     ...giocatore,
+    id: giocatore.id ? String(giocatore.id) : newId(),
     nome: String(giocatore.nome ?? '').toLowerCase().trim(),
     cognome: String(giocatore.cognome ?? '').toLowerCase().trim(),
     numeroMaglia: Number(giocatore.numeroMaglia),
     ruolo: String(giocatore.ruolo ?? '').toLowerCase().trim(),
+    /** Foto profilo caricata dal dispositivo (data URL). */
+    foto: String(giocatore.foto ?? ''),
   };
 }
 
@@ -30,12 +45,26 @@ function formatGiocatore(giocatore) {
     nome: capitalize(giocatore.nome ?? ''),
     cognome: capitalize(giocatore.cognome ?? ''),
     ruolo: capitalize(giocatore.ruolo ?? ''),
+    foto: giocatore.foto ?? '',
   };
 }
 
+/**
+ * Tutti i giocatori salvati. Le rose create prima dell'introduzione del
+ * profilo non hanno un id: viene generato e salvato al primo accesso, così
+ * ogni giocatore ha un riferimento stabile.
+ */
 function tutti() {
-  const giocatori = readJSON(STORAGE_KEY, []);
-  return Array.isArray(giocatori) ? giocatori.filter(Boolean) : [];
+  const raw = readJSON(STORAGE_KEY, []);
+  const lista = Array.isArray(raw) ? raw.filter(Boolean) : [];
+  let mancanoId = false;
+  const conId = lista.map((giocatore) => {
+    if (giocatore.id) return giocatore;
+    mancanoId = true;
+    return { ...giocatore, id: newId() };
+  });
+  if (mancanoId) writeJSON(STORAGE_KEY, conId);
+  return conId;
 }
 
 /**
@@ -47,6 +76,27 @@ export function getGiocatori(squadraId) {
     .filter((giocatore) => giocatore.squadraId === squadraId)
     .map(formatGiocatore)
     .sort((a, b) => a.numeroMaglia - b.numeroMaglia);
+}
+
+/** Singolo giocatore per id, oppure `null`. */
+export function getGiocatore(id) {
+  if (!id) return null;
+  const trovato = tutti().find((giocatore) => String(giocatore.id) === String(id));
+  return trovato ? formatGiocatore(trovato) : null;
+}
+
+/**
+ * Aggiorna i dati anagrafici di un giocatore (id, nome, cognome, numero,
+ * ruolo e foto). Restituisce il giocatore aggiornato, o `null` se non esiste.
+ */
+export function aggiornaGiocatore(id, dati) {
+  const lista = tutti();
+  const index = lista.findIndex((giocatore) => String(giocatore.id) === String(id));
+  if (index < 0) return null;
+  const aggiornato = normalizeGiocatore({ ...lista[index], ...dati, id: lista[index].id });
+  lista[index] = aggiornato;
+  writeJSON(STORAGE_KEY, lista);
+  return formatGiocatore(aggiornato);
 }
 
 /**

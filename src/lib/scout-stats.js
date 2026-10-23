@@ -209,6 +209,79 @@ export function sintesiCelle(celle) {
 }
 
 /**
+ * Statistiche complessive di un giocatore basate su tutti gli scout della
+ * squadra. Le azioni vengono riconosciute dal numero di maglia e si considerano
+ * solo gli scout in cui si osserva la squadra propria (le rilevazioni
+ * sull'avversaria non possono essere attribuite ai nostri giocatori).
+ *
+ * @param {object} giocatore giocatore della rosa
+ * @param {Array} scouts scout della squadra
+ * @returns {{
+ *   celle: object,
+ *   totaliPerEsito: object,
+ *   sintesi: {puntiFatti:number, erroriFatti:number, palloniAttaccati:number},
+ *   azioni: number,
+ *   setGiocati: number,
+ *   partite: Array
+ * }}
+ */
+export function statisticheGiocatore(giocatore, scouts = []) {
+  const numero = Number(giocatore?.numeroMaglia) || 0;
+  const celle = Object.fromEntries(AZIONI.map((azione) => [azione.id, cellaVuota()]));
+  const partite = [];
+
+  (Array.isArray(scouts) ? scouts : []).forEach((scout) => {
+    if (!scout || scout.squadraOsservata === 'avversaria') return;
+    const azioni = (Array.isArray(scout.azioni) ? scout.azioni : []).filter(
+      (azione) => Number(azione.numero) === numero,
+    );
+    if (azioni.length === 0) return;
+
+    const cellePartita = Object.fromEntries(AZIONI.map((azione) => [azione.id, cellaVuota()]));
+    const set = new Set();
+    azioni.forEach((azione) => {
+      const cella = cellePartita[azione.azione];
+      if (!cella) return;
+      cella.tot += 1;
+      if (isEsito(azione.esito)) cella[azione.esito] += 1;
+      set.add(Math.max(1, Number(azione.set) || 1));
+    });
+
+    const sintesi = sintesiCelle(cellePartita);
+    partite.push({
+      id: scout.id,
+      data: scout.data,
+      avversario: scout.avversario,
+      luogo: scout.luogo,
+      tipo: scout.tipo,
+      setGiocati: set.size,
+      azioni: azioni.length,
+      ...sintesi,
+    });
+
+    AZIONI.forEach((azione) => {
+      const cella = celle[azione.id];
+      const parziale = cellePartita[azione.id];
+      cella.tot += parziale.tot;
+      ESITI.forEach(({ id }) => (cella[id] += parziale[id]));
+    });
+  });
+
+  const totaliPerEsito = Object.fromEntries(
+    ESITI.map(({ id }) => [id, AZIONI.reduce((somma, azione) => somma + celle[azione.id][id], 0)]),
+  );
+
+  return {
+    celle,
+    totaliPerEsito,
+    sintesi: sintesiCelle(celle),
+    azioni: AZIONI.reduce((somma, azione) => somma + celle[azione.id].tot, 0),
+    setGiocati: partite.reduce((somma, partita) => somma + partita.setGiocati, 0),
+    partite: partite.sort((a, b) => String(b.data).localeCompare(String(a.data))),
+  };
+}
+
+/**
  * Ordina un elenco di numeri di maglia secondo l'ordine personalizzato salvato
  * nello scout: chi è nell'ordine segue quella sequenza, gli altri (numeri nuovi
  * o non presenti) restano in coda in ordine numerico crescente.

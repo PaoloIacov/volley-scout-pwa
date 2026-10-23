@@ -3,6 +3,7 @@ import Layout from './components/Layout.jsx';
 import Home from './pages/Home.jsx';
 import Squadre from './pages/Squadre.jsx';
 import Squadra from './pages/Squadra.jsx';
+import Giocatore from './pages/Giocatore.jsx';
 import Calendario from './pages/Calendario.jsx';
 import Scout from './pages/Scout.jsx';
 import ScoutSessione from './pages/ScoutSessione.jsx';
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/squadre" element={<Squadre />} />
           <Route path="/squadra" element={<Squadra />} />
+          <Route path="/squadra/:id" element={<Giocatore />} />
           <Route path="/calendario" element={<Calendario />} />
           <Route path="/scout" element={<Scout />} />
           <Route path="/scout/nuovo" element={<Scout />} />

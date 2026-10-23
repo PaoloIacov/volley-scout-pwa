@@ -1,7 +1,10 @@
-import { Check, UserPlus } from 'lucide-react';
+import { useRef } from 'react';
+import { Check, Image as ImageIcon, Trash, Upload, UserPlus } from 'lucide-react';
 import { RUOLI_GIOCATORE } from '../constants.js';
 import { useForm } from '../hooks/useForm.js';
 import { Button, Field, Modal, inputClass } from '../components/ui.jsx';
+import { useToast } from '../components/Toast.jsx';
+import { fileToDataUrl } from '../lib/image.js';
 
 function toFormValues(giocatore) {
   return giocatore
@@ -10,8 +13,9 @@ function toFormValues(giocatore) {
         cognome: giocatore.cognome ?? '',
         numeroMaglia: giocatore.numeroMaglia ? String(giocatore.numeroMaglia) : '',
         ruolo: giocatore.ruolo ?? '',
+        foto: giocatore.foto ?? '',
       }
-    : { nome: '', cognome: '', numeroMaglia: '', ruolo: '' };
+    : { nome: '', cognome: '', numeroMaglia: '', ruolo: '', foto: '' };
 }
 
 function validate(values) {
@@ -33,18 +37,37 @@ function validate(values) {
 
 export default function GiocatoreForm({ open, giocatore, onCancel, onSave }) {
   const isEditMode = Boolean(giocatore);
+  const toast = useToast();
   const form = useForm(toFormValues(giocatore), validate);
+  const fileRef = useRef(null);
 
   const onSubmit = form.handleSubmit((values) => {
     onSave({
+      id: giocatore?.id,
       nome: values.nome.trim(),
       cognome: values.cognome.trim(),
       numeroMaglia: Number(values.numeroMaglia),
       ruolo: values.ruolo,
+      foto: values.foto,
     });
   });
 
   const onBlur = (field) => () => form.touch(field);
+
+  const handleFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      // Foto contenuta: il profilo non ha bisogno della risoluzione piena e
+      // la localStorage resta leggera anche con una rosa numerosa.
+      const dataUrl = await fileToDataUrl(file, { maxWidth: 600, maxHeight: 600, quality: 0.8 });
+      form.setField('foto', dataUrl);
+      toast.show('Foto pronta: premi Salva per confermarla.', 'info');
+    } catch (error) {
+      toast.show(error.message || "Impossibile leggere l'immagine.", 'error');
+    }
+  };
 
   return (
     <Modal
@@ -65,6 +88,44 @@ export default function GiocatoreForm({ open, giocatore, onCancel, onSave }) {
       }
     >
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={onSubmit}>
+        <div className="sm:col-span-2">
+          <Field label="Foto profilo" hint="Facoltativa: viene mostrata nella rosa e nella pagina del giocatore.">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-line-strong bg-panel-2 text-ink-mute">
+                {form.values.foto ? (
+                  <img
+                    src={form.values.foto}
+                    alt="Anteprima foto giocatore"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <ImageIcon size={24} />
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFile}
+                  aria-label="Seleziona foto profilo"
+                />
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                  <Upload size={15} />
+                  Carica foto
+                </Button>
+                {form.values.foto && (
+                  <Button variant="danger" size="sm" onClick={() => form.setField('foto', '')}>
+                    <Trash size={15} />
+                    Rimuovi foto
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Field>
+        </div>
+
         <Field label="Nome *" htmlFor="nome" error={form.showError('nome') && form.errors.nome}>
           <input
             id="nome"

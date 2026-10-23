@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
+  ChevronRight,
   Download,
   Hand,
-  Pencil,
   Plus,
   Shield,
   ShieldCheck,
@@ -47,7 +48,7 @@ export default function Squadra() {
   const toast = useToast();
   const squadra = getSquadraAttiva();
   const [giocatori, setGiocatoriState] = useState(() => (squadra ? getGiocatori(squadra.id) : []));
-  const [formState, setFormState] = useState(null); // { giocatore, index }
+  const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null); // { giocatore, index }
   const [pendingImport, setPendingImport] = useState(null);
 
@@ -56,19 +57,12 @@ export default function Squadra() {
     setGiocatoriState(getGiocatori(squadra.id));
   };
 
-  const openNew = () => setFormState({ giocatore: null, index: -1 });
-
-  const openEdit = (giocatore, index) => setFormState({ giocatore, index });
+  const openNew = () => setFormOpen(true);
 
   const handleSave = (giocatore) => {
-    const list = [...giocatori];
-    if (formState.index >= 0) list[formState.index] = giocatore;
-    else list.push(giocatore);
-    persist(list);
-    setFormState(null);
-    toast.show(
-      formState.index >= 0 ? 'Giocatore aggiornato con successo.' : 'Giocatore aggiunto alla rosa.'
-    );
+    persist([...giocatori, giocatore]);
+    setFormOpen(false);
+    toast.show('Giocatore aggiunto alla rosa.');
   };
 
   const handleDelete = () => {
@@ -158,24 +152,47 @@ export default function Squadra() {
           {giocatori.map((giocatore, index) => {
             const Icon = ruoloIcon(giocatore.ruolo);
             return (
-              <Card key={`${giocatore.numeroMaglia}-${index}`} className="flex items-center gap-4 p-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-strong text-lg font-bold text-on-accent shadow-lg shadow-accent/30">
-                  {giocatore.numeroMaglia}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink sm:text-base">
-                    {giocatore.nome} {giocatore.cognome}
-                  </p>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-soft">
-                    <Icon size={14} className="text-accent-text" />
-                    {giocatore.ruolo}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <IconButton label="Modifica" onClick={() => openEdit(giocatore, index)}>
-                    <Pencil size={15} />
-                  </IconButton>
-                  <IconButton label="Elimina" variant="danger" onClick={() => setToDelete({ giocatore, index })}>
+              <Card
+                key={giocatore.id}
+                className="p-0 transition-colors duration-150 hover:border-line-strong"
+              >
+                <div className="flex items-center gap-2 py-2 pl-4 pr-2">
+                  <Link
+                    to={`/squadra/${giocatore.id}`}
+                    aria-label={`Apri il profilo di ${giocatore.nome} ${giocatore.cognome}`}
+                    className="group flex min-w-0 flex-1 items-center gap-4 py-2"
+                  >
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-strong text-lg font-bold text-on-accent shadow-lg shadow-accent/30">
+                      {giocatore.foto ? (
+                        <img
+                          src={giocatore.foto}
+                          alt={`Foto di ${giocatore.nome} ${giocatore.cognome}`}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        giocatore.numeroMaglia
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ink sm:text-base">
+                        {giocatore.nome} {giocatore.cognome}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-soft">
+                        <Icon size={14} className="text-accent-text" />
+                        {giocatore.ruolo}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={18}
+                      className="shrink-0 text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-ink-mute"
+                    />
+                  </Link>
+                  <IconButton
+                    label="Elimina"
+                    variant="danger"
+                    onClick={() => setToDelete({ giocatore, index })}
+                  >
                     <Trash size={15} />
                   </IconButton>
                 </div>
@@ -185,15 +202,12 @@ export default function Squadra() {
         </div>
       )}
 
-      {formState && (
-        <GiocatoreForm
-          key={formState.index >= 0 ? `edit-${formState.index}` : 'new'}
-          open
-          giocatore={formState.giocatore}
-          onCancel={() => setFormState(null)}
-          onSave={handleSave}
-        />
-      )}
+      <GiocatoreForm
+        open={formOpen}
+        giocatore={null}
+        onCancel={() => setFormOpen(false)}
+        onSave={handleSave}
+      />
 
       <ConfirmDialog
         open={Boolean(toDelete)}

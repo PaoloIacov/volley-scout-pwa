@@ -90,3 +90,23 @@ implementate.**
   colonna Tot con le sotto-colonne di esito e riportano anche il tipo di gara
   tra le informazioni della partita; la tab Totali mostra a schermo i totali di
   tutti i convocati, con la suddivisione per azione e le tre sintesi.
+
+## Profili giocatori e storico complessivo
+
+- [x] **Card cliccabile** — nella rosa il pulsante matita è stato rimosso: tutta
+  la card del giocatore apre la sua pagina profilo. Resta il pulsante di
+  eliminazione.
+- [x] **Foto profilo** — dal profilo (e dal form di creazione) si può caricare,
+  sostituire o rimuovere una foto; viene mostrata nella card della rosa e
+  nell'intestazione del profilo.
+- [x] **Anagrafica modificabile** — dal profilo si modificano nome, cognome,
+  numero di maglia, ruolo e foto, con gli stessi controlli di validazione della
+  rosa.
+- [x] **Storico complessivo** — il profilo somma le rilevazioni del giocatore
+  su tutti gli scout della squadra (escluse le rilevazioni sull'avversaria):
+  sintesi di Punti fatti / Errori fatti / Palloni attaccati, azioni per esito,
+  set giocati e dettaglio delle singole partite.
+- [x] **Identificativo stabile** — ogni giocatore ha un `id` salvato, così il
+  profilo resta collegato anche modificando l'anagrafica. Le rose esistenti
+  senza id vengono migrate automaticamente al primo accesso; l'import dei
+  backup assegna gli id mancanti.

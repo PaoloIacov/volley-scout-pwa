@@ -101,15 +101,107 @@ describe('giocatori', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi' }));
 
     expect(await screen.findByText('Mario Rossi')).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('giocatori'))).toEqual([
-      {
-        nome: 'mario',
-        cognome: 'rossi',
-        numeroMaglia: 10,
-        ruolo: 'palleggiatore',
-        squadraId: 's1',
-      },
-    ]);
+    const [salvato] = JSON.parse(localStorage.getItem('giocatori'));
+    expect(salvato).toEqual({
+      id: expect.any(String),
+      nome: 'mario',
+      cognome: 'rossi',
+      numeroMaglia: 10,
+      ruolo: 'palleggiatore',
+      foto: '',
+      squadraId: 's1',
+    });
+  });
+
+  it('non mostra più la matita: la card apre il profilo del giocatore', () => {
+    seedRosa();
+    renderAt('/squadra');
+
+    expect(screen.queryByRole('button', { name: 'Modifica' })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Apri il profilo di Mario Rossi' }),
+    ).toBeInTheDocument();
+  });
+
+  it('modifica i dati anagrafici dalla pagina profilo', async () => {
+    seedRosa();
+    renderAt('/squadra');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Apri il profilo di Mario Rossi' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Mario Rossi' }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica dati' }));
+    fill('Cognome *', 'bianchi');
+    fill('Numero maglia *', '12');
+    fireEvent.click(screen.getByRole('button', { name: 'Salva' }));
+
+    expect(await screen.findByRole('heading', { name: 'Mario Bianchi' })).toBeInTheDocument();
+    const [salvato] = JSON.parse(localStorage.getItem('giocatori'));
+    expect(salvato).toMatchObject({ nome: 'mario', cognome: 'bianchi', numeroMaglia: 12 });
+    expect(salvato.id).toBeTruthy();
+  });
+
+  it('mostra le statistiche aggregate di tutti gli scout nel profilo', () => {
+    seedRosa();
+    seedScout({
+      azioni: [
+        { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '#' },
+        { id: 'a2', ts: 2, set: 1, numero: 10, azione: 'ricezione', esito: '+' },
+      ],
+    });
+    const scouts = JSON.parse(localStorage.getItem('scout'));
+    scouts.push({
+      ...scouts[0],
+      id: 'sc2',
+      data: '2026-12-08',
+      avversario: 'Altra Squadra',
+      azioni: [
+        { id: 'a3', ts: 3, set: 1, numero: 10, azione: 'attacco', esito: '=' },
+        { id: 'a4', ts: 4, set: 2, numero: 10, azione: 'muro', esito: '#' },
+      ],
+    });
+    localStorage.setItem('scout', JSON.stringify(scouts));
+
+    renderAt('/squadra');
+    fireEvent.click(screen.getByRole('link', { name: 'Apri il profilo di Mario Rossi' }));
+
+    const valore = (etichetta) =>
+      screen.getAllByText(etichetta)[0].parentElement.firstElementChild.textContent;
+    expect(valore('Scout con dati')).toBe('2');
+    expect(valore('Azioni rilevate')).toBe('4');
+    expect(valore('Punti fatti')).toBe('2');
+    expect(valore('Errori fatti')).toBe('1');
+    expect(valore('Palloni attaccati')).toBe('2');
+    expect(valore('Set giocati')).toBe('3');
+
+    const tabella = screen.getByRole('table', { name: 'Statistiche di Mario Rossi' });
+    expect(within(tabella).getByRole('rowheader', { name: 'Attacco' })).toBeInTheDocument();
+    expect(within(tabella).getByText('Totale')).toBeInTheDocument();
+
+    const scoutTabella = screen.getByRole('table', { name: 'Scout di Mario Rossi' });
+    expect(within(scoutTabella).getByText('Altra Squadra')).toBeInTheDocument();
+    expect(within(scoutTabella).getByText('Volley Beta')).toBeInTheDocument();
+  });
+
+  it('mostra la foto del giocatore nella rosa', () => {
+    localStorage.setItem(
+      'giocatori',
+      JSON.stringify([
+        {
+          id: 'g1',
+          nome: 'mario',
+          cognome: 'rossi',
+          numeroMaglia: 10,
+          ruolo: 'palleggiatore',
+          foto: 'data:image/jpeg;base64,abc',
+          squadraId: 's1',
+        },
+      ]),
+    );
+    renderAt('/squadra');
+    expect(screen.getByAltText('Foto di Mario Rossi')).toBeInTheDocument();
   });
 
   it('mostra gli errori di validazione su campi obbligatori', async () => {
