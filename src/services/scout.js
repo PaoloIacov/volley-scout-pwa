@@ -76,7 +76,7 @@ function normalizeOrdine(value) {
   return numeri.length > 0 ? numeri : undefined;
 }
 
-/** Formazioni per set: `[{ set, numeri }]`, al massimo 7 titolari per set. */
+/** Formazioni per set: `[{ set, numeri }]`, al massimo 6 movimento + 2 liberi per set. */
 function normalizeFormazioni(value) {
   if (!Array.isArray(value)) return undefined;
   const perSet = new Map();

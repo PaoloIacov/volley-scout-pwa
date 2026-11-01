@@ -41,11 +41,13 @@ e design system a token condivisi.
   assegna un punto solo per attacco, muro e battuta (la ricezione perfetta non
   muove il punteggio), mentre `=` assegna sempre un punto all'avversario;
   annulla/rimuovi riportano indietro il punto.
-  A ogni set, compreso il primo appena creato, si scelgono i 7 titolari (6 di
-  movimento + 1 libero), mostrati in cima al riepilogo con il libero in fondo.
+  A ogni set, compreso il primo appena creato, si scelgono i 6 titolari di
+  movimento: i liberi (fino a due, doppio libero) entrano sempre e restano in
+  fondo alla tabella del riepilogo.
   Nel riepilogo non si trascina più: il pulsante accanto al giocatore apre la
-  sostituzione con la panchina, mantenendo il vincolo 6 + 1. La tabella mostra
-  solo i 7 titolari del set attivo, con i numeri legati al set selezionato:
+  sostituzione con la panchina, mantenendo il vincolo 6 di movimento + 2
+  liberi. La tabella mostra solo i titolari del set attivo, con i numeri legati
+  al set selezionato:
   cambiando set dalla barra del punteggio (o aggiungendone uno nuovo) i dati si
   aggiornano. La tab Totali
   replica la suddivisione Ricezione / Attacco / Muro / Battuta per tutti i
@@ -62,7 +64,8 @@ e design system a token condivisi.
   riepilogo si vede anche quanti dei nostri punti derivano da errori avversari
   (con percentuale sul totale). I set si aggiungono ma anche si
   eliminano dall'elenco in alto (con conferma se contengono dati). I liberi
-  hanno card riconoscibili e non registrano battuta né muro; i dati vengono
+  hanno card riconoscibili, possono essere due (doppio libero) e non registrano
+  battuta né muro; i dati vengono
   salvati a ogni tocco, si può uscire e rientrare senza perdere nulla. Dalla
   tab Riepilogo si scoutizza anche toccando direttamente le celle
   (giocatore × azione × esito).

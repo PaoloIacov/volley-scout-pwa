@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { useToast } from '../Toast.jsx';
 import { Button, Card } from '../ui.jsx';
-import { AZIONI, ESITI, ESITO_CLASSI, isLibero, ordinaNumeri } from '../../lib/scout-stats.js';
+import { AZIONI, ESITI, ESITO_CLASSI, IN_CAMPO_LIBERI, IN_CAMPO_MOVIMENTO, isLibero, ordinaNumeri } from '../../lib/scout-stats.js';
 
 const LABEL_AZIONE = Object.fromEntries(AZIONI.map((azione) => [azione.id, azione.label]));
 const LABEL_ESITO = Object.fromEntries(ESITI.map((esito) => [esito.id, esito.label]));
@@ -68,16 +68,24 @@ export default function Inserimento({
   const numeriDisponibili = new Set(numeri);
   const movimento = numeri.filter((numero) => !liberi.has(numero));
   const defaultInCampo = [
-    ...movimento.slice(0, 6),
-    ...numeri.filter((numero) => liberi.has(numero)).slice(0, 1),
+    ...movimento.slice(0, IN_CAMPO_MOVIMENTO),
+    ...numeri.filter((numero) => liberi.has(numero)).slice(0, IN_CAMPO_LIBERI),
   ];
   const configuratiInCampo = [
     ...new Set((formazione ?? scout.inCampo ?? defaultInCampo).filter((numero) => numeriDisponibili.has(numero))),
   ];
+  // I liberi non si scelgono: quelli convocati (fino a due) sono sempre in
+  // campo, anche quando la formazione salvata non li contiene.
+  const liberiInCampo = [
+    ...new Set([
+      ...configuratiInCampo.filter((numero) => liberi.has(numero)),
+      ...numeri.filter((numero) => liberi.has(numero)),
+    ]),
+  ].slice(0, IN_CAMPO_LIBERI);
   const inCampo = osservaRosa
     ? [
-        ...configuratiInCampo.filter((numero) => !liberi.has(numero)).slice(0, 6),
-        ...configuratiInCampo.filter((numero) => liberi.has(numero)).slice(0, 1),
+        ...configuratiInCampo.filter((numero) => !liberi.has(numero)).slice(0, IN_CAMPO_MOVIMENTO),
+        ...liberiInCampo,
       ]
     : numeri;
   const numeriInCampo = new Set(inCampo);
@@ -112,9 +120,12 @@ export default function Inserimento({
     if (entrato === numeroSel) return;
     const prossimo = inCampo.map((numero) => (numero === numeroSel ? entrato : numero));
     const movimentoInCampo = prossimo.filter((numero) => !liberi.has(numero)).length;
-    const liberiInCampo = prossimo.filter((numero) => liberi.has(numero)).length;
-    if (movimentoInCampo > 6 || liberiInCampo > 1) {
-      toast.show('In campo puoi avere 6 giocatori e 1 libero.', 'error');
+    const liberiInCampoDopo = prossimo.filter((numero) => liberi.has(numero)).length;
+    if (movimentoInCampo > IN_CAMPO_MOVIMENTO || liberiInCampoDopo > IN_CAMPO_LIBERI) {
+      toast.show(
+        `In campo puoi avere ${IN_CAMPO_MOVIMENTO} giocatori di movimento e ${IN_CAMPO_LIBERI} liberi.`,
+        'error',
+      );
       return;
     }
     onCambiaInCampo(prossimo);
@@ -181,7 +192,10 @@ export default function Inserimento({
                     {titolo}
                   </h3>
                   <span className="text-xs text-ink-faint">
-                    {elenco.length}/{attivo ? '6 + 1 L' : numeri.length}
+                    {elenco.length}/
+                    {attivo
+                      ? `${IN_CAMPO_MOVIMENTO} + ${Math.min(IN_CAMPO_LIBERI, liberiInCampo.length)} L`
+                      : numeri.length}
                   </span>
                 </div>
                 <div className="mt-1.5 grid grid-cols-4 gap-1.5 sm:mt-2 sm:grid-cols-4 sm:gap-2 xl:grid-cols-6">

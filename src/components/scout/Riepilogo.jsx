@@ -69,10 +69,10 @@ function Numero({ valore, esito, primo, onClic, etichetta, disabilitato }) {
  * nelle 4 sotto-colonne di esito. È anche un secondo pannello di scout:
  * toccando una cella di azione si registra quel dato per il giocatore.
  *
- * Dalla stagione corrente la tabella mostra solo i 7 titolari scelti per il
- * set attivo: al posto della vecchia maniglia di trascinamento c'è il pulsante
- * di sostituzione, che fa entrare un giocatore dalla panchina. Il Tot resta
- * negli export Excel/PDF.
+ * Dalla stagione corrente la tabella mostra solo i titolari del set attivo
+ * (6 di movimento + i liberi automatici): al posto della vecchia maniglia di
+ * trascinamento c'è il pulsante di sostituzione, che fa entrare un giocatore
+ * dalla panchina. Il Tot resta negli export Excel/PDF.
  */
 export default function Riepilogo({
   scout,
@@ -98,6 +98,10 @@ export default function Riepilogo({
   const propria = scout.squadraOsservata === 'propria';
   const inFormazione = propria && Array.isArray(formazione) && formazione.length > 0;
   const liberi = numeriLiberi(giocatori);
+  const titolariMovimento = inFormazione
+    ? formazione.filter((numero) => !liberi.has(numero)).length
+    : 0;
+  const titolariLiberi = inFormazione ? formazione.filter((numero) => liberi.has(numero)).length : 0;
   const perNumero = new Map(righe.map((riga) => [riga.numero, riga]));
   const righeVisibili = inFormazione
     ? formazione.map((numero) => perNumero.get(numero)).filter(Boolean)
@@ -115,7 +119,7 @@ export default function Riepilogo({
     ? numeriRosa.filter((numero) => !formazione.includes(numero))
     : [];
 
-  /** La sostituzione deve lasciare in campo al massimo 6 + 1 libero. */
+  /** La sostituzione deve lasciare in campo al massimo 6 movimento + 2 liberi. */
   const sostituzioneValida = (uscita, entrata) => {
     if (!inFormazione) return false;
     const prossima = formazione.map((numero) => (numero === uscita ? entrata : numero));
@@ -161,7 +165,8 @@ export default function Riepilogo({
             {inFormazione ? (
               <>
                 {' '}
-                · Titolari: {formazione.length}/7 · tocca
+                · Titolari: {titolariMovimento}
+                {titolariLiberi > 0 ? ` + ${titolariLiberi} L` : ''} · tocca
                 <ArrowLeftRight size={12} className="mx-1 inline" aria-hidden="true" />
                 per sostituire
               </>
@@ -360,8 +365,8 @@ export default function Riepilogo({
 
         <p className="border-t border-line bg-panel-2 px-4 py-2 text-[11px] text-ink-mute">
           La tabella mostra i numeri del set {scout.setCorrente}
-          {inFormazione ? ` per i 7 titolari scelti` : ''}. Cambia set dalla barra del punteggio;
-          i totali di tutti i convocati e della partita sono nella tab Totali.
+          {inFormazione ? ` per i ${titolariMovimento} titolari di movimento` : ''}. Cambia set dalla barra
+          del punteggio; i totali di tutti i convocati e della partita sono nella tab Totali.
         </p>
       </Card>
 
@@ -381,7 +386,8 @@ export default function Riepilogo({
           <span className="font-semibold text-ink">
             {rigaUscita?.nome ? `${rigaUscita.nome} (N. ${rigaUscita.numero})` : `N. ${uscita}`}
           </span>
-          . Restano in campo 6 giocatori e 1 libero.
+          . Restano in campo {IN_CAMPO_MOVIMENTO} giocatori di movimento e fino a{' '}
+          {IN_CAMPO_LIBERI} liberi.
         </p>
         {panchina.length === 0 ? (
           <p className="text-sm text-ink-mute">Non ci sono giocatori in panchina.</p>
@@ -400,7 +406,7 @@ export default function Riepilogo({
                   title={
                     valida
                       ? `Fai entrare N. ${numero}`
-                      : 'La sostituzione non rispetta il vincolo 6 + 1 libero'
+                      : `La sostituzione non rispetta il vincolo ${IN_CAMPO_MOVIMENTO} + ${IN_CAMPO_LIBERI} liberi`
                   }
                   onClick={() => sostituisci(numero)}
                   className={`flex h-12 cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${

@@ -12,7 +12,9 @@ import {
   contaGenerici,
   formazioneDelSet,
   formazionePredefinita,
+  componiFormazione,
   impostaFormazione,
+  liberiConvocati,
   ordinaNumeri,
 } from '../lib/scout-stats.js';
 import { Badge, ConfirmDialog, IconButton, SegmentedControl } from '../components/ui.jsx';
@@ -54,7 +56,7 @@ const TABS = [
 /**
  * Set per cui va scelta la formazione appena si apre lo scout: il primo set
  * (o quello corrente) se non ha ancora titolari salvati. Così anche il set 1
- * chiede subito i 7 titolari, come i set successivi.
+ * chiede subito i titolari di movimento, come i set successivi.
  */
 function setDaFormare(scout) {
   if (!scout || scout.squadraOsservata !== 'propria') return null;
@@ -76,16 +78,18 @@ export default function ScoutSessione() {
   const [azioneSel, setAzioneSel] = useState(null);
   /** Set in attesa di conferma per l'eliminazione (null = nessuna). */
   const [setDaEliminare, setSetDaEliminare] = useState(null);
-  /** Set per cui si stanno scegliendo i 7 titolari (null = modale chiusa). */
+  /** Set per cui si stanno scegliendo i titolari (null = modale chiusa). */
   const [setFormazione, setSetFormazione] = useState(() => setDaFormare(scout));
 
   /** Applica la modifica, la salva subito e aggiorna lo stato. */
   const aggiorna = (next) => setScout(salvaScout(next));
 
   /**
-   * Formazione del set: quella scelta esplicitamente oppure quella predefinita
-   * (primi 6 di movimento + primo libero tra i convocati). Solo per la nostra
-   * squadra: quando si scoutizza l'avversaria i numeri restano 1-20.
+   * Formazione del set: quella scelta esplicitamente (solo i 6 di movimento)
+   * più i liberi convocati (fino a due), oppure quella predefinita tra i
+   * convocati. I liberi entrano sempre e vengono mostrati in fondo.
+   * Solo per la nostra squadra: quando si scoutizza l'avversaria i numeri
+   * restano 1-20.
    */
   const formazionePerSet = (setN) => {
     if (!scout || scout.squadraOsservata !== 'propria') return undefined;
@@ -94,13 +98,24 @@ export default function ScoutSessione() {
       Array.isArray(scout.convocati) && scout.convocati.length > 0
         ? new Set(scout.convocati)
         : null;
+    const disponibili = rosa.filter(
+      (giocatore) => !convocati || convocati.has(giocatore.numeroMaglia),
+    );
     const numeri = ordinaNumeri(
-      rosa
-        .filter((giocatore) => !convocati || convocati.has(giocatore.numeroMaglia))
-        .map((giocatore) => giocatore.numeroMaglia),
+      disponibili.map((giocatore) => giocatore.numeroMaglia),
       scout.ordineGiocatori,
     );
-    return formazioneDelSet(scout, setN) ?? formazionePredefinita(numeri, rosa);
+    const scelta = formazioneDelSet(scout, setN);
+    const liberi = liberiConvocati(rosa, scout.convocati);
+    if (!scelta) return formazionePredefinita([...numeri, ...liberi], rosa);
+    // Compatibilità con le formazioni salvate prima del doppio libero: i
+    // liberi eventualmente presenti vengono comunque integrati con tutti
+    // quelli convocati.
+    const ammessi = new Set(numeri);
+    return componiFormazione(
+      [...scelta.filter((numero) => ammessi.has(numero)), ...liberi],
+      rosa,
+    );
   };
 
   const cambiaPunteggio = (setN, campo, valore) =>
@@ -118,7 +133,7 @@ export default function ScoutSessione() {
 
   const selezionaSet = (n) => {
     aggiorna({ ...scout, setCorrente: n });
-    // A ogni nuovo set si scelgono i 7 titolari (se non sono già impostati).
+    // A ogni nuovo set si scelgono i titolari (se non sono già impostati).
     if (
       n !== scout.setCorrente &&
       scout.squadraOsservata === 'propria' &&
@@ -139,7 +154,8 @@ export default function ScoutSessione() {
 
   /**
    * Sostituzione dalla tabella del riepilogo: stesso vincolo dell'inserimento
-   * (6 di movimento + 1 libero), salvata nella formazione del set corrente.
+   * (6 di movimento scelti + i liberi automatici), salvata nella formazione
+   * del set corrente.
    */
   const sostituisci = (uscita, entrata) => {
     const attuale = formazionePerSet(scout.setCorrente) ?? [];
@@ -154,10 +170,17 @@ export default function ScoutSessione() {
 
   const confermaFormazione = (numeri) => {
     if (setFormazione === null) return;
+    // La modale restituisce solo i 6 di movimento: i liberi convocati
+    // (fino a due) vengono aggiunti sempre, in fondo alla formazione.
+    const rosa = getGiocatori(scout.squadraId);
+    const formazione = componiFormazione(
+      [...numeri, ...liberiConvocati(rosa, scout.convocati)],
+      rosa,
+    );
     aggiorna({
       ...scout,
-      formazioni: impostaFormazione(scout, setFormazione, numeri),
-      ...(setFormazione === scout.setCorrente ? { inCampo: numeri } : {}),
+      formazioni: impostaFormazione(scout, setFormazione, formazione),
+      ...(setFormazione === scout.setCorrente ? { inCampo: formazione } : {}),
     });
     setSetFormazione(null);
   };
@@ -166,7 +189,7 @@ export default function ScoutSessione() {
     if (scout.sets.length >= SET_MASSIMO) return;
     const n = scout.sets.length + 1;
     aggiorna({ ...scout, sets: [...scout.sets, { n, nostro: 0, loro: 0 }], setCorrente: n });
-    // All'inizio di ogni set si scelgono i 7 titolari.
+    // All'inizio di ogni set si scelgono i titolari di movimento.
     if (scout.squadraOsservata === 'propria' && getGiocatori(scout.squadraId).length > 0) {
       setSetFormazione(n);
     }

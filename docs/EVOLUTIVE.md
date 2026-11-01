@@ -32,18 +32,22 @@ implementate.**
 
 ## Titolari e sostituzioni
 
-- [x] **Scelta dei 7 titolari a ogni set** — all'aggiunta di un set, aprendo
-  uno scout il cui set corrente non ha formazione (compreso il set 1 appena
-  creato) o selezionando un set senza formazione salvata si apre la modale
-  "Titolari del set N": 6 giocatori di movimento + 1 libero. La scelta è salvata
-  per set in `scout.formazioni`; il libero viene sempre mostrato in fondo.
-- [x] **Solo 7 righe in cima alla tabella** — il riepilogo della nostra squadra
-  mostra esclusivamente i 7 titolari del set attivo. I dati degli altri
-  giocatori restano nella tab Totali e negli export.
+- [x] **Scelta dei 6 titolari di movimento a ogni set** — all'aggiunta di un
+  set, aprendo uno scout il cui set corrente non ha formazione (compreso il set
+  1 appena creato) o selezionando un set senza formazione salvata si apre la
+  modale "Titolari del set N": si scelgono solo i 6 giocatori di movimento. La
+  scelta è salvata per set in `scout.formazioni`.
+- [x] **Doppio libero** — i liberi convocati (fino a due) entrano
+  automaticamente in formazione, senza doverli scegliere tra i titolari, e
+  vengono mostrati in fondo alla tabella. Se in rosa ce ne sono di più, si può
+  alternare quello in campo con uno dalla panchina.
+- [x] **Solo i titolari in cima alla tabella** — il riepilogo della nostra
+  squadra mostra esclusivamente i 6 titolari di movimento e i liberi del set
+  attivo. I dati degli altri giocatori restano nella tab Totali e negli export.
 - [x] **Sostituzione al posto del trascinamento** — rimossa la maniglia di
   riordino: accanto a ogni titolare c'è il pulsante di sostituzione, che apre
   la panchina (convocati non in campo) e fa entrare il giocatore scelto,
-  mantenendo il vincolo 6 di movimento + 1 libero.
+  mantenendo il vincolo 6 di movimento + 2 liberi.
 - [x] **Modifica dei titolari** — dal riepilogo il pulsante "Cambia titolari"
   riapre la scelta per il set corrente. Come formazione proposta si usa quella
   del set (o del set precedente, o quella predefinita).
@@ -82,7 +86,7 @@ implementate.**
   possono convocare tutti i giocatori della rosa (preselezionati).
 - [x] **Compatibilità** — partite e scout esistenti senza tipo vengono letti
   come "Campionato"; gli scout senza formazioni usano la formazione
-  predefinita (primi 6 di movimento + primo libero tra i convocati).
+  predefinita (primi 6 di movimento + i liberi convocati, fino a due).
 
 ## Export
 

@@ -84,9 +84,15 @@ export const MAX_MOVIMENTO = 12;
 export const MAX_LIBERI = 2;
 export const MAX_CONVOCATI = MAX_MOVIMENTO + MAX_LIBERI;
 
-/** In campo: 6 giocatori di movimento più un libero. */
+/**
+ * In campo: 6 giocatori di movimento più fino a 2 liberi (doppio libero).
+ * I liberi non fanno parte della scelta dei titolari: entrano sempre.
+ */
 export const IN_CAMPO_MOVIMENTO = 6;
-export const IN_CAMPO_LIBERI = 1;
+export const IN_CAMPO_LIBERI = 2;
+/** Titolari scelti nella modale di ogni set: solo i giocatori di movimento. */
+export const TITOLARI_MOVIMENTO = IN_CAMPO_MOVIMENTO;
+/** Massimo di numeri salvati in una formazione (6 di movimento + 2 liberi). */
 export const TITOLARI = IN_CAMPO_MOVIMENTO + IN_CAMPO_LIBERI;
 
 /** True se il giocatore è di ruolo libero (il ruolo è case-insensitive). */
@@ -107,7 +113,7 @@ export function numeriLiberi(giocatori) {
 
 /**
  * Compone una formazione valida per il campo: al massimo 6 giocatori di
- * movimento e 1 libero, con il libero sempre in fondo (per la tabella).
+ * movimento e 2 liberi, con i liberi sempre in fondo (per la tabella).
  * L'ordine dei giocatori di movimento resta quello ricevuto.
  *
  * @param {number[]} numeri numeri scelti
@@ -125,11 +131,28 @@ export function componiFormazione(numeri, giocatori) {
 }
 
 /**
- * Formazione predefinita: i primi 6 di movimento e il primo libero tra i
- * numeri disponibili (di norma i convocati), nell'ordine ricevuto.
+ * Formazione predefinita: i primi 6 di movimento e i liberi tra i numeri
+ * disponibili (di norma i convocati), nell'ordine ricevuto.
  */
 export function formazionePredefinita(numeri, giocatori) {
   return componiFormazione(numeri, giocatori);
+}
+
+/**
+ * Numeri dei liberi convocati (massimo 2, per il doppio libero). Con
+ * `convocati` assente o vuoto valgono tutti i liberi della rosa.
+ *
+ * @param {Array} giocatori rosa
+ * @param {number[]|undefined} convocati numeri convocati
+ * @returns {number[]}
+ */
+export function liberiConvocati(giocatori, convocati) {
+  const ammessi =
+    Array.isArray(convocati) && convocati.length > 0 ? new Set(convocati) : null;
+  return (Array.isArray(giocatori) ? giocatori : [])
+    .filter((giocatore) => isLibero(giocatore) && (!ammessi || ammessi.has(giocatore.numeroMaglia)))
+    .map((giocatore) => giocatore.numeroMaglia)
+    .slice(0, IN_CAMPO_LIBERI);
 }
 
 /** Formazione scelta per un set (undefined se non ancora impostata). */

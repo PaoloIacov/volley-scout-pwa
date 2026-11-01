@@ -1282,7 +1282,7 @@ describe('scout', () => {
     seedRosaGrande();
     renderAt('/scout/sc1');
 
-    // In campo la formazione predefinita (1-6 + libero 14): il 7 è in panchina.
+    // In campo la formazione predefinita (1-6 + i liberi 14 e 15): il 7 è in panchina.
     fireEvent.click(screen.getByRole('button', { name: 'Giocatore 1' }));
     expect(screen.getByRole('button', { name: 'Giocatore 1' })).toHaveAttribute(
       'aria-pressed',
@@ -1300,6 +1300,30 @@ describe('scout', () => {
     const inCampo = JSON.parse(localStorage.getItem('scout'))[0].inCampo;
     expect(inCampo).toContain(7);
     expect(inCampo).not.toContain(1);
+  });
+
+  it('tiene in campo il doppio libero e consente di alternarli', () => {
+    seedScout();
+    seedRosaGrande();
+    renderAt('/scout/sc1');
+
+    // I due liberi convocati sono in campo; il terzo (16) resta in panchina.
+    expect(screen.getByRole('button', { name: 'Giocatore 14' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Giocatore 15' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Giocatore 16 in panchina' })).toBeInTheDocument();
+
+    // Entrambi i liberi non registrano battuta né muro.
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 15' }));
+    expect(screen.getByRole('button', { name: 'Battuta' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Muro' })).toBeDisabled();
+
+    // Il terzo libero può prendere il posto di uno dei due in campo.
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 14' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Giocatore 16 in panchina' }));
+    const inCampo = JSON.parse(localStorage.getItem('scout'))[0].inCampo;
+    expect(inCampo).toContain(16);
+    expect(inCampo).toContain(15);
+    expect(inCampo).not.toContain(14);
   });
 
   it('avvisa se si tocca un giocatore in panchina senza averne scelto uno in campo', async () => {
@@ -1341,33 +1365,36 @@ describe('scout', () => {
     expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
   });
 
-  it('mostra solo i 7 titolari del set e li sostituisce dalla tabella', () => {
+  it('mostra solo i titolari del set e li sostituisce dalla tabella', () => {
     seedScout();
     seedRosaGrande();
     renderAt('/scout/sc1');
 
     fireEvent.click(screen.getByRole('radio', { name: 'Riepilogo' }));
 
-    // Formazione predefinita: 1-6 di movimento + 14 libero. Il 7 è in panchina.
+    // Formazione predefinita: 1-6 di movimento + i due liberi 14 e 15. Il 7 è in panchina.
     expect(screen.getByRole('button', { name: 'Sostituisci N. 1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sostituisci N. 14' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sostituisci N. 15' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sostituisci N. 7' })).not.toBeInTheDocument();
     expect(screen.queryByText('Trascina per ordinare')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sostituisci N. 1' }));
     const dialog = screen.getByRole('dialog', { name: 'Sostituisci N. 1' });
-    // Il 15 è un libero e non può entrare al posto di un giocatore di movimento.
-    expect(within(dialog).getByRole('button', { name: 'Fai entrare N. 15' })).toBeDisabled();
+    // Il 16 è il terzo libero: in campo ce ne sono già due (doppio libero).
+    expect(within(dialog).getByRole('button', { name: 'Fai entrare N. 16' })).toBeDisabled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Fai entrare N. 7' }));
 
     const scout = JSON.parse(localStorage.getItem('scout'))[0];
-    expect(scout.formazioni.find((voce) => voce.set === 1).numeri).toContain(7);
-    expect(scout.formazioni.find((voce) => voce.set === 1).numeri).not.toContain(1);
+    const formazione1 = scout.formazioni.find((voce) => voce.set === 1);
+    expect(formazione1.numeri).toContain(7);
+    expect(formazione1.numeri).not.toContain(1);
+    expect(formazione1.numeri).toEqual(expect.arrayContaining([14, 15]));
     expect(scout.inCampo).toContain(7);
     expect(screen.getByRole('button', { name: 'Sostituisci N. 7' })).toBeInTheDocument();
   });
 
-  it("fa scegliere i 7 titolari all'inizio di ogni nuovo set", () => {
+  it("fa scegliere i 6 titolari di movimento all'inizio di ogni nuovo set", () => {
     seedScout();
     seedRosaGrande();
     renderAt('/scout/sc1');
@@ -1378,6 +1405,10 @@ describe('scout', () => {
     expect(
       within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }),
     ).toHaveAttribute('aria-pressed', 'true');
+    // I liberi non si scelgono tra i titolari.
+    expect(
+      within(dialog).queryByRole('button', { name: 'Titolare Luca Neri' }),
+    ).not.toBeInTheDocument();
 
     // Si può cambiare: fuori l'1, dentro il 7.
     fireEvent.click(within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }));
@@ -1388,22 +1419,25 @@ describe('scout', () => {
     const formazione2 = scout.formazioni.find((voce) => voce.set === 2);
     expect(formazione2.numeri).toContain(7);
     expect(formazione2.numeri).not.toContain(1);
+    // I due liberi convocati entrano automaticamente.
+    expect(formazione2.numeri).toEqual(expect.arrayContaining([14, 15]));
     expect(scout.setCorrente).toBe(2);
   });
 
-  it('fa scegliere i 7 titolari anche per il primo set', () => {
+  it('fa scegliere i 6 titolari di movimento anche per il primo set', () => {
     seedScout();
     seedRosaGrande();
     renderAt('/scout/sc1');
 
     const dialog = screen.getByRole('dialog', { name: 'Titolari del set 1' });
-    // La proposta è la formazione predefinita tra i convocati: 1-6 + 14.
+    // La proposta è la formazione predefinita tra i convocati: 1-6 di movimento.
     expect(
       within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }),
     ).toHaveAttribute('aria-pressed', 'true');
+    // I liberi non compaiono nella scelta dei titolari.
     expect(
-      within(dialog).getByRole('button', { name: 'Titolare Luca Neri' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+      within(dialog).queryByRole('button', { name: 'Titolare Luca Neri' }),
+    ).not.toBeInTheDocument();
 
     // Si può cambiare: fuori l'1, dentro il 7.
     fireEvent.click(within(dialog).getByRole('button', { name: 'Titolare Giocatore1 Rossi1' }));
@@ -1414,6 +1448,7 @@ describe('scout', () => {
     const formazione1 = scout.formazioni.find((voce) => voce.set === 1);
     expect(formazione1.numeri).toContain(7);
     expect(formazione1.numeri).not.toContain(1);
+    expect(formazione1.numeri).toEqual(expect.arrayContaining([14, 15]));
     expect(scout.inCampo).toEqual(formazione1.numeri);
     expect(
       screen.queryByRole('dialog', { name: 'Titolari del set 1' }),
