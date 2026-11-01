@@ -94,6 +94,20 @@ implementate.**
   colonna Tot con le sotto-colonne di esito e riportano anche il tipo di gara
   tra le informazioni della partita; la tab Totali mostra a schermo i totali di
   tutti i convocati, con la suddivisione per azione e le tre sintesi.
+- [x] **Intestazione orizzontale** — i dati della partita sono disposti su più
+  colonne (3 coppie etichetta/valore per riga nel PDF, 2 nell'Excel) invece che
+  impilati in una sola colonna.
+- [x] **Colonna numero di maglia** — PDF ed Excel hanno una colonna "N."
+  dedicata, separata dal nome del giocatore.
+- [x] **Divisori tra i gruppi** — linee verticali marcate separano Ricezione,
+  Attacco, Muro, Battuta e Tot sia nel PDF sia nell'Excel.
+- [x] **Raggruppamento per ruolo** — nei riepiloghi i giocatori sono raggruppati
+  per ruolo (palleggiatore, opposto, schiacciatore, centrale, libero) e ordinati
+  per numero di maglia dentro ogni gruppo.
+- [x] **PDF in due pagine** — la prima pagina contiene i dati anagrafici della
+  partita e il dettaglio dei set (punteggio, errori generici e punti da errori
+  avversari); la seconda contiene la tabella completa dei giocatori, sempre
+  interamente su una pagina.
 
 ## Profili giocatori e storico complessivo
 

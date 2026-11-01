@@ -1507,13 +1507,21 @@ describe('export scout', () => {
     expect(dati.info).toContainEqual(['Errori generici', 2]);
     expect(dati.info).toContainEqual(['Punti da errori avversari', 1]);
 
-    expect(dati.punteggio.righe).toEqual([
-      ['Set 1', 25, 23],
-      ['Set 2', 25, 19],
+    expect(dati.punteggio.header).toEqual([
+      'Set',
+      'Noi',
+      'Loro',
+      'Generici',
+      'Errori avv.',
     ]);
-    expect(dati.punteggio.totale).toEqual(['Set vinti', 2, 0]);
+    expect(dati.punteggio.righe).toEqual([
+      ['Set 1', 25, 23, 1, 1],
+      ['Set 2', 25, 19, 1, 0],
+    ]);
+    expect(dati.punteggio.totale).toEqual(['Set vinti', 2, 0, 2, 1]);
 
     expect(dati.riepilogo.gruppi).toEqual([
+      'N.',
       'Giocatore',
       'Ricezione',
       'Attacco',
@@ -1522,33 +1530,22 @@ describe('export scout', () => {
       'Tot',
     ]);
     expect(dati.riepilogo.esiti).toEqual(['#', '+', '-', '=']);
-    // Una colonna per esito per ogni azione (4 × 4), più il Tot suddiviso.
+    // I giocatori sono raggruppati per ruolo (palleggiatore, opposto,
+    // schiacciatore, centrale, libero) e poi per numero; chi non è in rosa
+    // finisce nel gruppo "Altri".
+    expect(dati.riepilogo.gruppiRuolo.map((gruppo) => gruppo.ruolo)).toEqual([
+      'Palleggiatore',
+      'Altri',
+    ]);
+    expect(
+      dati.riepilogo.gruppiRuolo.map((gruppo) => gruppo.righe.map((riga) => riga[0])),
+    ).toEqual([[10], [7]]);
+    // Numero e nome sono colonne separate; una colonna per esito per ogni
+    // azione (4 × 4), più il Tot suddiviso.
     expect(dati.riepilogo.righe).toEqual([
       [
-        'N. 7',
-        0,
-        0,
-        0,
-        0, // ricezione
-        0,
-        0,
-        0,
-        0, // attacco
-        0,
-        1,
-        0,
-        0, // muro
-        0,
-        0,
-        0,
-        0, // battuta
-        0,
-        1,
-        0,
-        0, // Tot
-      ],
-      [
-        'Mario Rossi (N. 10)',
+        10,
+        'Mario Rossi',
         0,
         0,
         0,
@@ -1570,8 +1567,33 @@ describe('export scout', () => {
         0,
         1, // Tot
       ],
+      [
+        7,
+        '',
+        0,
+        0,
+        0,
+        0, // ricezione
+        0,
+        0,
+        0,
+        0, // attacco
+        0,
+        1,
+        0,
+        0, // muro
+        0,
+        0,
+        0,
+        0, // battuta
+        0,
+        1,
+        0,
+        0, // Tot
+      ],
     ]);
     expect(dati.riepilogo.totale).toEqual([
+      '',
       'Totale',
       0,
       0,

@@ -1,6 +1,7 @@
 /* Esportazione dello scout in Excel (.xlsx) e PDF: contenuto sintetico
    (info partita, punteggi dei set e tabella riepilogo per giocatore, con
-   ogni colonna — Tot compresa — suddivisa nelle 4 sotto-colonne di esito).
+   numero di maglia separato dal nome e ogni colonna — Tot compresa —
+   suddivisa nelle 4 sotto-colonne di esito).
    Le librerie vengono caricate dinamicamente all'export, così non pesano
    sul caricamento iniziale dell'app. */
 import { toItalianDate } from './dates.js';
@@ -10,16 +11,20 @@ import {
   costruisciRiepilogo,
   contaErroriAvversari,
   contaGenerici,
+  erroriAvversariPerSet,
+  genericiPerSet,
 } from './scout-stats.js';
 
 /** Colori dell'export, allineati al tema dell'app. */
 const COL_INTTESTAZIONE = '#18181b';
 const COL_INTTESTAZIONE_RGB = [24, 24, 27];
+const COL_TESTO = '#18181b';
 const COL_TOTALE = '#f4f4f5';
 const COL_TOTALE_RGB = [244, 244, 245];
 const COL_TESTO_RGB = [24, 24, 27];
 const COL_MUTE_RGB = [113, 113, 122];
 const COL_LINEA_RGB = [228, 228, 231];
+const COL_LINEA = '#e4e4e7';
 const COL_MUTE = '#71717a';
 /** Colori degli esiti, allineati ai token del tema chiaro dell'app. */
 const COL_ESITI = { '#': '#059669', '+': '#0284c7', '-': '#d97706', '=': '#dc2626' };
@@ -29,6 +34,87 @@ const COL_ESITI_RGB = {
   '-': [217, 119, 6],
   '=': [220, 38, 38],
 };
+
+/** Codici degli esiti nell'ordine delle sotto-colonne. */
+const ESITI_GRUPPO = ESITI.map(({ id }) => id);
+/** Sotto-colonne aggiuntive per le azioni con percentuali. */
+const SOTTO_COLONNE_PERCENTUALI = ['Pos', 'Eff'];
+
+/**
+ * Gruppi di colonne del riepilogo. Ricezione, attacco e battuta hanno anche
+ * Positività (`#` / palloni) ed Efficienza ((`#` - `=`) / palloni), in
+ * percentuale; muro e Tot restano sulle quattro colonne di esito.
+ */
+const GRUPPI_COLONNE = [
+  { azione: 'ricezione', label: 'Ricezione', percentuali: true },
+  { azione: 'attacco', label: 'Attacco', percentuali: true },
+  { azione: 'muro', label: 'Muro', percentuali: false },
+  { azione: 'battuta', label: 'Battuta', percentuali: true },
+  { azione: 'tot', label: 'Tot', percentuali: false },
+];
+const AZIONI_PERCENTUALI = new Set(
+  GRUPPI_COLONNE.filter((gruppo) => gruppo.percentuali).map((gruppo) => gruppo.azione),
+);
+
+/** Sotto-colonne di un gruppo (4 esiti, più Pos ed Eff dove previste). */
+function sottoColonne(gruppo) {
+  return [
+    ...ESITI_GRUPPO,
+    ...(gruppo.percentuali ? SOTTO_COLONNE_PERCENTUALI : []),
+  ];
+}
+
+/** Colonne numeriche: 4 esiti per azione + Pos/Eff + il Tot. */
+const COLONNE_NUMERICHE = GRUPPI_COLONNE.reduce(
+  (somma, gruppo) => somma + sottoColonne(gruppo).length,
+  0,
+);
+/** Indice della prima colonna numerica (dopo N. e Giocatore). */
+const PRIMA_COLONNA_ESITI = 2;
+
+/** Indici delle colonne che aprono un gruppo (per i divisori verticali). */
+const INIZI_GRUPPO = new Set();
+{
+  let indice = PRIMA_COLONNA_ESITI;
+  GRUPPI_COLONNE.forEach((gruppo) => {
+    INIZI_GRUPPO.add(indice);
+    indice += sottoColonne(gruppo).length;
+  });
+}
+
+/** Descrittore di ogni colonna numerica, nell'ordine in cui viene stampata. */
+const DESCRITTORI_COLONNA = GRUPPI_COLONNE.flatMap((gruppo) => [
+  ...ESITI_GRUPPO.map((esito) => ({
+    gruppo: gruppo.azione,
+    label: esito,
+    esito,
+    percentuale: false,
+  })),
+  ...(gruppo.percentuali
+    ? SOTTO_COLONNE_PERCENTUALI.map((label) => ({
+        gruppo: gruppo.azione,
+        label,
+        esito: null,
+        percentuale: true,
+      }))
+    : []),
+]);
+
+/** Ordine con cui raggruppare i giocatori per ruolo nei riepiloghi. */
+export const ORDINE_RUOLI = ['Palleggiatore', 'Opposto', 'Schiacciatore', 'Centrale', 'Libero'];
+/** Gruppo di chi non ha un ruolo riconosciuto (es. numero fuori rosa). */
+const RUOLO_ALTRI = 'Altri';
+
+/** Ruolo canonico (con iniziale maiuscola) o stringa vuota se sconosciuto. */
+function ruoloCanonico(ruolo) {
+  const testo = String(ruolo ?? '').trim().toLowerCase();
+  return ORDINE_RUOLI.find((voce) => voce.toLowerCase() === testo) ?? '';
+}
+
+/** True se la colonna apre un nuovo gruppo (Ricezione, Attacco, Muro, Battuta, Tot). */
+function apreGruppo(indice) {
+  return INIZI_GRUPPO.has(indice);
+}
 
 /**
  * Dati dell'export in blocchi pronti: `info` (righe etichetta/valore),
@@ -64,31 +150,123 @@ export function costruisciExport(scout, giocatori = [], squadraNome = '') {
     else if (set.loro > set.nostro) setLoro += 1;
   });
 
-  /** Riga del riepilogo: 4 colonne per esito per ogni azione, poi il Tot. */
+  const generici = new Map(genericiPerSet(scout).map((voce) => [voce.set, voce.n]));
+  const avversari = new Map(erroriAvversariPerSet(scout).map((voce) => [voce.set, voce.n]));
+
+  /**
+   * Positività (`#` / palloni) ed Efficienza ((`#` - `=`) / palloni), in
+   * percentuale intera. `null` quando non ci sono palloni per quell'azione.
+   */
+  const percentuali = (cella) => {
+    if (!cella.tot) return [null, null];
+    return [
+      Math.round((cella['#'] / cella.tot) * 100),
+      Math.round(((cella['#'] - cella['=']) / cella.tot) * 100),
+    ];
+  };
+
+  /**
+   * Riga del riepilogo: per ogni azione le 4 colonne di esito e, dove
+   * previste, Pos ed Eff; poi le 4 colonne di esito del Tot.
+   */
   const numeriRiga = (celle, perEsito) => [
-    ...AZIONI.flatMap((azione) => ESITI.map(({ id }) => celle[azione.id][id])),
+    ...AZIONI.flatMap((azione) => {
+      const esiti = ESITI.map(({ id }) => celle[azione.id][id]);
+      return AZIONI_PERCENTUALI.has(azione.id)
+        ? [...esiti, ...percentuali(celle[azione.id])]
+        : esiti;
+    }),
     ...ESITI.map(({ id }) => perEsito[id]),
   ];
+
+  // Ruolo di ogni numero di maglia, per raggruppare le righe invece di
+  // lasciarle nell'ordine del numero. Chi non è in rosa finisce in "Altri".
+  // Quando si osserva l'avversaria i numeri non sono i nostri: niente ruoli.
+  const usaRuoli = scout.squadraOsservata !== 'avversaria';
+  const ruoloPerNumero = new Map(
+    (usaRuoli && Array.isArray(giocatori) ? giocatori : []).map((giocatore) => [
+      Number(giocatore?.numeroMaglia),
+      ruoloCanonico(giocatore?.ruolo),
+    ]),
+  );
+  const posizioneRuolo = new Map(ORDINE_RUOLI.map((ruolo, indice) => [ruolo, indice]));
+  const ordinaPerRuolo = (a, b) => {
+    const ruoloA = ruoloPerNumero.get(Number(a.numero)) || '';
+    const ruoloB = ruoloPerNumero.get(Number(b.numero)) || '';
+    const posizioneA = posizioneRuolo.get(ruoloA) ?? ORDINE_RUOLI.length;
+    const posizioneB = posizioneRuolo.get(ruoloB) ?? ORDINE_RUOLI.length;
+    return posizioneA - posizioneB || Number(a.numero) - Number(b.numero);
+  };
+  const righeOrdinate = [...righe].sort(ordinaPerRuolo);
+
+  /** Riga piatta dell'export: numero, nome e conteggi. */
+  const rigaExport = (riga) => [
+    riga.numero,
+    riga.nome,
+    ...numeriRiga(riga.celle, riga.perEsito),
+  ];
+
+  // Stesse righe raggruppate per ruolo, pronte per le intestazioni di gruppo.
+  const gruppiRuolo = [];
+  if (usaRuoli) {
+    righeOrdinate.forEach((riga) => {
+      const ruolo = ruoloPerNumero.get(Number(riga.numero)) || RUOLO_ALTRI;
+      let gruppo = gruppiRuolo[gruppiRuolo.length - 1];
+      if (!gruppo || gruppo.ruolo !== ruolo) {
+        gruppo = { ruolo, righe: [] };
+        gruppiRuolo.push(gruppo);
+      }
+      gruppo.righe.push(rigaExport(riga));
+    });
+  }
 
   return {
     titolo: scout.avversario ? `Scout vs ${scout.avversario}` : 'Scout',
     info,
     punteggio: {
-      header: ['Set', 'Noi', 'Loro'],
-      righe: scout.sets.map((set) => [`Set ${set.n}`, set.nostro, set.loro]),
-      totale: ['Set vinti', setNostri, setLoro],
+      header: ['Set', 'Noi', 'Loro', 'Generici', 'Errori avv.'],
+      righe: scout.sets.map((set) => [
+        `Set ${set.n}`,
+        set.nostro,
+        set.loro,
+        generici.get(set.n) ?? 0,
+        avversari.get(set.n) ?? 0,
+      ]),
+      totale: [
+        'Set vinti',
+        setNostri,
+        setLoro,
+        contaGenerici(scout),
+        contaErroriAvversari(scout),
+      ],
     },
     riepilogo: {
-      // Stesso schema della tabella in app: ogni gruppo vale 4 colonne, una per esito.
-      gruppi: ['Giocatore', ...AZIONI.map((azione) => azione.label), 'Tot'],
+      // Numero e nome sono colonne separate; `colonne` descrive i gruppi
+      // numerici con le rispettive sotto-colonne (esiti, Pos, Eff).
+      gruppi: ['N.', 'Giocatore', ...AZIONI.map((azione) => azione.label), 'Tot'],
       esiti: ESITI.map(({ id }) => id),
-      righe: righe.map((riga) => [
-        riga.nome ? `${riga.nome} (N. ${riga.numero})` : `N. ${riga.numero}`,
-        ...numeriRiga(riga.celle, riga.perEsito),
-      ]),
-      totale: ['Totale', ...numeriRiga(totali, totaliPerEsito)],
+      colonne: GRUPPI_COLONNE.map((gruppo) => ({
+        label: gruppo.label,
+        sotto: sottoColonne(gruppo),
+      })),
+      righe: righeOrdinate.map(rigaExport),
+      gruppiRuolo,
+      totale: ['', 'Totale', ...numeriRiga(totali, totaliPerEsito)],
     },
   };
+}
+
+/**
+ * Divide le informazioni della partita in righe da `perRiga` coppie
+ * etichetta/valore: serve a occupare tutta la larghezza del foglio/PDF
+ * invece di impilare i dati in un'unica colonna.
+ */
+export function raggruppaInfo(info, perRiga = 3) {
+  const gruppi = [];
+  for (let i = 0; i < info.length; i += perRiga) {
+    gruppi.push(info.slice(i, i + perRiga));
+  }
+  return gruppi;
 }
 
 /** Nome file sicuro per il filesystem: `scout_Volley-Beta_2026-12-01.xlsx`. */
@@ -150,68 +328,233 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     return { value: String(value), ...style };
   };
   const stile = {
-    titolo: { fontWeight: 'bold', fontSize: 15 },
+    titolo: { fontWeight: 'bold', fontSize: 16 },
     sezione: { fontWeight: 'bold', fontSize: 13 },
-    etichetta: { fontWeight: 'bold' },
+    etichetta: {
+      fontWeight: 'bold',
+      textColor: COL_TESTO,
+      backgroundColor: COL_TOTALE,
+      align: 'left',
+      alignVertical: 'center',
+      borderStyle: 'thin',
+      borderColor: COL_LINEA,
+    },
+    valoreInfo: {
+      textColor: COL_TESTO,
+      align: 'left',
+      alignVertical: 'center',
+      borderStyle: 'thin',
+      borderColor: COL_LINEA,
+    },
     intestazione: {
       fontWeight: 'bold',
       textColor: '#ffffff',
       backgroundColor: COL_INTTESTAZIONE,
+      borderStyle: 'thin',
+      borderColor: '#3f3f46',
+      alignVertical: 'center',
     },
-    totale: { fontWeight: 'bold', backgroundColor: COL_TOTALE },
-    headerRow: (row) =>
-      row.map((voce, i) =>
-        cella(voce, { ...stile.intestazione, align: i === 0 ? 'left' : 'center' }),
-      ),
+    intestazioneGruppo: {
+      leftBorderStyle: 'medium',
+      leftBorderColor: '#ffffff',
+    },
+    totale: {
+      fontWeight: 'bold',
+      backgroundColor: COL_TOTALE,
+      borderStyle: 'thin',
+      borderColor: COL_LINEA,
+    },
   };
 
+  /** Cella con bordo sottile, usata da punteggi e riepilogo. */
+  const cellaBordata = (value, style = {}) => ({
+    ...cella(value, style),
+    borderStyle: style.borderStyle ?? 'thin',
+    borderColor: style.borderColor ?? COL_LINEA,
+  });
+
   /** Numero del riepilogo: colorato per esito, grigio quando è zero. */
-  const cellaNumero = (value, colonna) => {
-    if (colonna === 0) return cella(value);
-    const esito = dati.riepilogo.esiti[(colonna - 1) % ESITI.length];
-    return { value, align: 'center', textColor: value > 0 ? COL_ESITI[esito] : COL_MUTE };
+  const cellaNumero = (value, colonna, extra = {}) => {
+    const bordoGruppo = apreGruppo(colonna)
+      ? { leftBorderStyle: 'medium', leftBorderColor: COL_INTTESTAZIONE }
+      : {};
+    const base = { borderStyle: 'thin', borderColor: COL_LINEA, ...bordoGruppo, ...extra };
+    if (colonna === 0) {
+      return { value, align: 'center', ...base };
+    }
+    if (colonna === 1) {
+      return { value: String(value ?? ''), align: 'left', ...base };
+    }
+    const descrittore = DESCRITTORI_COLONNA[colonna - PRIMA_COLONNA_ESITI];
+    if (descrittore?.percentuale) {
+      if (value === null || value === undefined) {
+        return { value: '—', align: 'center', textColor: COL_MUTE, ...base };
+      }
+      return {
+        value: value / 100,
+        format: '0%',
+        align: 'center',
+        textColor:
+          value > 0 ? COL_ESITI['#'] : value < 0 ? COL_ESITI['='] : COL_MUTE,
+        ...base,
+      };
+    }
+    return {
+      value,
+      align: 'center',
+      textColor: value > 0 ? COL_ESITI[descrittore?.esito] : COL_MUTE,
+      ...base,
+    };
+  };
+
+  /** Riga di sezione a tutta larghezza. */
+  const rigaSezione = (titolo) => [
+    cella(titolo, {
+      ...stile.sezione,
+      backgroundColor: COL_TOTALE,
+      columnSpan: 1 + 1 + COLONNE_NUMERICHE,
+    }),
+    ...Array.from({ length: COLONNE_NUMERICHE + 1 }, () => null),
+  ];
+
+  /**
+   * Info in una griglia di 2 coppie etichetta/valore per riga: la prima
+   * coppia usa le colonne più larghe, la seconda si distribuisce sul resto
+   * del foglio. Così l'intestazione sfrutta la larghezza orizzontale senza
+   * costringere a scorrere fino all'ultima colonna della tabella.
+   */
+  const righeInfo = () => {
+    const larghezza = 2 + COLONNE_NUMERICHE; // N. + Giocatore + colonne numeriche
+    const righe = [];
+    for (let i = 0; i < dati.info.length; i += 2) {
+      const gruppo = dati.info.slice(i, i + 2);
+      const riga = [];
+      gruppo.forEach(([label, value], indice) => {
+        // La prima coppia ha il valore più largo (nomi squadra), la seconda
+        // l'etichetta più larga (es. "Punti da errori avversari"). Insieme
+        // occupano le prime 14 colonne, restando dentro la larghezza di stampa.
+        const spanEtichetta = indice === 0 ? 3 : 4;
+        const spanValore = indice === 0 ? 4 : 3;
+        riga.push(cella(label, { ...stile.etichetta, columnSpan: spanEtichetta }));
+        for (let j = 1; j < spanEtichetta; j += 1) riga.push(null);
+        riga.push(cella(value, { ...stile.valoreInfo, columnSpan: spanValore }));
+        for (let j = 1; j < spanValore; j += 1) riga.push(null);
+      });
+      while (riga.length < larghezza) riga.push(null);
+      righe.push(riga);
+    }
+    return righe;
   };
 
   const righe = [];
-  righe.push([cella(dati.titolo, stile.titolo)]);
-  righe.push([]);
-  dati.info.forEach(([label, value]) => righe.push([cella(label, stile.etichetta), cella(value)]));
-  righe.push([]);
-  righe.push([cella('Punteggio', stile.sezione)]);
-  righe.push(stile.headerRow(dati.punteggio.header));
-  dati.punteggio.righe.forEach((riga) => righe.push(riga.map((voce) => cella(voce))));
-  righe.push(dati.punteggio.totale.map((voce) => cella(voce, stile.totale)));
-  righe.push([]);
-  righe.push([cella('Riepilogo', stile.sezione)]);
-  // Intestazione a due livelli: gruppi uniti su 4 colonne + la riga dei 4 esiti.
   righe.push([
+    cella(dati.titolo, {
+      ...stile.titolo,
+      columnSpan: 2 + COLONNE_NUMERICHE,
+    }),
+    ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
+  ]);
+  righe.push([]);
+  righeInfo().forEach((riga) => righe.push(riga));
+  righe.push([]);
+  righe.push(rigaSezione('Punteggio'));
+  // La colonna N. è stretta: il punteggio usa due colonne per ogni voce, così
+  // anche "Errori avv." resta leggibile.
+  const rigaPunteggio = (valori, stileCella = {}) => {
+    const riga = [
+      cellaBordata(valori[0], { ...stileCella, columnSpan: 2, align: 'left' }),
+      null,
+    ];
+    valori.slice(1).forEach((voce) => {
+      riga.push(cellaBordata(voce, { ...stileCella, columnSpan: 2 }));
+      riga.push(null);
+    });
+    return riga;
+  };
+  righe.push(rigaPunteggio(dati.punteggio.header, stile.intestazione));
+  dati.punteggio.righe.forEach((riga) => righe.push(rigaPunteggio(riga)));
+  righe.push(rigaPunteggio(dati.punteggio.totale, stile.totale));
+  righe.push([]);
+  righe.push(rigaSezione('Riepilogo'));
+  // Intestazione a due livelli: N. e Giocatore occupano due righe; ogni
+  // gruppo è unito sulla sua larghezza (4 esiti, più Pos/Eff dove previste)
+  // e ha un bordo sinistro marcato.
+  righe.push([
+    cella('N.', { ...stile.intestazione, align: 'center', rowSpan: 2 }),
     cella('Giocatore', { ...stile.intestazione, align: 'left', rowSpan: 2 }),
-    ...dati.riepilogo.gruppi
-      .slice(1)
-      .flatMap((etichetta) => [
-        cella(etichetta, { ...stile.intestazione, align: 'center', columnSpan: 4 }),
-        null,
-        null,
-        null,
-      ]),
+    ...dati.riepilogo.colonne.flatMap((gruppo) => [
+      cella(gruppo.label, {
+        ...stile.intestazione,
+        ...stile.intestazioneGruppo,
+        align: 'center',
+        columnSpan: gruppo.sotto.length,
+      }),
+      ...Array.from({ length: gruppo.sotto.length - 1 }, () => null),
+    ]),
   ]);
   righe.push([
-    null, // coperta dal "Giocatore" con rowSpan: 2
-    ...dati.riepilogo.gruppi
-      .slice(1)
-      .flatMap(() => dati.riepilogo.esiti.map((esito) => cella(esito, stile.intestazione))),
+    null, // coperta da "N." con rowSpan: 2
+    null, // coperta da "Giocatore" con rowSpan: 2
+    ...dati.riepilogo.colonne.flatMap((gruppo) =>
+      gruppo.sotto.map((etichetta, i) =>
+        cella(etichetta, {
+          ...stile.intestazione,
+          ...(i === 0 ? stile.intestazioneGruppo : {}),
+          align: 'center',
+        }),
+      ),
+    ),
   ]);
-  dati.riepilogo.righe.forEach((riga) => righe.push(riga.map((voce, i) => cellaNumero(voce, i))));
-  righe.push(
-    dati.riepilogo.totale.map((voce, i) => ({ ...cellaNumero(voce, i), ...stile.totale })),
-  );
+  // Una riga di gruppo per ruolo, poi i giocatori di quel ruolo. Quando non
+  // ci sono ruoli (scout dell'avversaria) le righe restano in sequenza.
+  if (dati.riepilogo.gruppiRuolo.length > 0) {
+    dati.riepilogo.gruppiRuolo.forEach((gruppo) => {
+      righe.push([
+        cella(gruppo.ruolo.toUpperCase(), {
+          fontWeight: 'bold',
+          fontSize: 10,
+          textColor: COL_TESTO,
+          backgroundColor: COL_TOTALE,
+          align: 'left',
+          alignVertical: 'center',
+          borderStyle: 'thin',
+          borderColor: COL_LINEA,
+          columnSpan: 2 + COLONNE_NUMERICHE,
+        }),
+        ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
+      ]);
+      gruppo.righe.forEach((riga) =>
+        righe.push(riga.map((voce, i) => cellaNumero(voce, i))),
+      );
+    });
+  } else {
+    dati.riepilogo.righe.forEach((riga) =>
+      righe.push(riga.map((voce, i) => cellaNumero(voce, i))),
+    );
+  }
+  righe.push(dati.riepilogo.totale.map((voce, i) => cellaNumero(voce, i, stile.totale)));
+  righe.push([]);
+  righe.push([
+    cella(`Legenda: ${ESITI.map((esito) => `${esito.id} ${esito.breve}`).join('  ·  ')}`, {
+      textColor: COL_MUTE,
+      columnSpan: 2 + COLONNE_NUMERICHE,
+    }),
+    ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
+  ]);
 
   const blob = await writeExcelFile(
     righe,
     {
       sheet: 'Scout',
-      // Colonna giocatore larga, poi 20 colonne strette (5 gruppi × 4 esiti).
-      columns: [{ width: 28 }, ...Array.from({ length: 20 }, () => ({ width: 7.5 }))],
+      orientation: 'landscape',
+      showGridLines: false,
+      // Numero stretto, nome largo, poi le colonne numeriche (esiti e
+      // percentuali) con larghezza compatta per restare leggibili.
+      columns: [
+        { width: 6 },
+        { width: 26 },
+        ...Array.from({ length: COLONNE_NUMERICHE }, () => ({ width: 7.5 })),
+      ],
     },
     { fontFamily: 'Calibri', fontSize: 11 },
   ).toBlob();
@@ -228,17 +571,38 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const margine = 14;
+  const larghezzaPagina = doc.internal.pageSize.getWidth();
+  const larghezzaUtile = larghezzaPagina - margine * 2;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(17);
   doc.text(testoPdf(dati.titolo), margine, 17);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...COL_MUTE_RGB);
-  dati.info.forEach(([label, value], index) => {
-    doc.text(testoPdf(`${label}: ${value}`), margine, 24 + index * 5);
+  // Info della partita su 3 colonne, per sfruttare tutta la larghezza.
+  const infoRighe = raggruppaInfo(dati.info, 3);
+  const larghezzaInfo = larghezzaUtile / 3;
+  const passoInfo = 5.2;
+  const inizioInfo = 24;
+  doc.setFontSize(9.5);
+  infoRighe.forEach((riga, r) => {
+    riga.forEach(([label, value], c) => {
+      const x = margine + c * larghezzaInfo;
+      const y = inizioInfo + r * passoInfo;
+      const testoEtichetta = testoPdf(`${label}:`);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...COL_TESTO_RGB);
+      doc.text(testoEtichetta, x, y);
+      const larghezzaEtichetta = doc.getTextWidth(testoEtichetta);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...COL_MUTE_RGB);
+      doc.text(testoPdf(value), x + larghezzaEtichetta + 1.5, y);
+    });
   });
+
+  const lineaInfo = inizioInfo + infoRighe.length * passoInfo + 0.5;
+  doc.setDrawColor(...COL_LINEA_RGB);
+  doc.setLineWidth(0.25);
+  doc.line(margine, lineaInfo, larghezzaPagina - margine, lineaInfo);
 
   const stileTabella = {
     theme: 'grid',
@@ -256,63 +620,181 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       halign: 'left',
-      lineWidth: 0,
+      lineWidth: 0.1,
+      lineColor: [63, 63, 70],
     },
     footStyles: {
       fillColor: COL_TOTALE_RGB,
       textColor: COL_TESTO_RGB,
       fontStyle: 'bold',
-      lineWidth: 0,
+      lineWidth: 0.1,
+      lineColor: COL_LINEA_RGB,
     },
     alternateRowStyles: { fillColor: [250, 250, 250] },
   };
 
+  // Pagina 1: dati anagrafici della partita e punteggio dei set.
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...COL_TESTO_RGB);
+  doc.text(testoPdf('Punteggio per set'), margine, lineaInfo + 8);
+
   autoTable(doc, {
     ...stileTabella,
-    startY: 24 + dati.info.length * 5 + 3,
+    styles: { ...stileTabella.styles, fontSize: 10.5, cellPadding: 3.2 },
+    startY: lineaInfo + 11,
     head: [dati.punteggio.header],
     body: dati.punteggio.righe.map((riga) => riga.map((voce) => testoPdf(voce))),
     foot: [dati.punteggio.totale.map((voce) => testoPdf(voce))],
   });
 
-  /** Cella del riepilogo PDF: numeri colorati per esito, grigi quando zero. */
+  // Pagina 2: sempre la sola tabella dei giocatori, dimensionata per stare
+  // interamente in una pagina anche con rose numerose.
+  doc.addPage();
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...COL_TESTO_RGB);
+  doc.text(testoPdf('Riepilogo giocatori'), margine, 15);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...COL_MUTE_RGB);
+  doc.text(
+    testoPdf([dati.titolo, toItalianDate(scout.data), squadraNome].filter(Boolean).join('  ·  ')),
+    margine,
+    20.5,
+  );
+
+  /**
+   * Cella del riepilogo PDF: numeri colorati per esito, percentuali con il
+   * segno (verde sopra zero, rosso sotto zero), grigi quando zero o assenti.
+   */
   const cellaPdf = (voce, i) => {
-    if (i === 0) return { content: testoPdf(voce), styles: { halign: 'left' } };
-    const esito = dati.riepilogo.esiti[(i - 1) % ESITI.length];
+    if (i === 0) {
+      return { content: String(voce), styles: { halign: 'center' } };
+    }
+    if (i === 1) {
+      return { content: testoPdf(voce), styles: { halign: 'left' } };
+    }
+    const descrittore = DESCRITTORI_COLONNA[i - PRIMA_COLONNA_ESITI];
+    if (descrittore?.percentuale) {
+      return {
+        content: voce === null || voce === undefined ? '—' : `${voce}%`,
+        styles: {
+          halign: 'center',
+          textColor:
+            voce > 0
+              ? COL_ESITI_RGB['#']
+              : voce < 0
+                ? COL_ESITI_RGB['=']
+                : COL_MUTE_RGB,
+        },
+      };
+    }
     return {
       content: String(voce),
-      styles: { halign: 'center', textColor: voce > 0 ? COL_ESITI_RGB[esito] : COL_MUTE_RGB },
+      styles: {
+        halign: 'center',
+        textColor: voce > 0 ? COL_ESITI_RGB[descrittore?.esito] : COL_MUTE_RGB,
+      },
     };
   };
 
+  const inizioTabella = 26;
+  const altezzaPagina = doc.internal.pageSize.getHeight();
+  const margineInferiore = 12;
+  const spazioLegenda = 10;
+  const altezzaDisponibile = altezzaPagina - inizioTabella - margineInferiore - spazioLegenda;
+  // Righe del corpo (giocatori + intestazioni di ruolo) + 2 di testata + 1 di totale.
+  const righeCorpo =
+    dati.riepilogo.gruppiRuolo.length > 0
+      ? dati.riepilogo.gruppiRuolo.reduce(
+          (somma, gruppo) => somma + 1 + gruppo.righe.length,
+          0,
+        )
+      : dati.riepilogo.righe.length;
+  const numeroRighe = righeCorpo + 3;
+
+  // Riduce font e padding finché la tabella non entra nella pagina.
+  let fontSize = 8.5;
+  let cellPadding = 1.9;
+  const altezzaStimata = () => numeroRighe * (fontSize * 0.3528 * 1.15 + cellPadding * 2);
+  while (altezzaStimata() > altezzaDisponibile && fontSize > 4.5) {
+    fontSize = Math.max(4.5, Number((fontSize - 0.25).toFixed(2)));
+    cellPadding = Math.max(0.6, Number((fontSize * 0.22).toFixed(2)));
+  }
+
+  const corpo = [];
+  if (dati.riepilogo.gruppiRuolo.length > 0) {
+    dati.riepilogo.gruppiRuolo.forEach((gruppo) => {
+      corpo.push([
+        {
+          content: testoPdf(gruppo.ruolo.toUpperCase()),
+          colSpan: 2 + COLONNE_NUMERICHE,
+          styles: {
+            halign: 'left',
+            fontStyle: 'bold',
+            fontSize: Math.max(6, Number((fontSize - 0.3).toFixed(2))),
+            fillColor: COL_TOTALE_RGB,
+            textColor: COL_TESTO_RGB,
+          },
+        },
+      ]);
+      gruppo.righe.forEach((riga) => corpo.push(riga.map(cellaPdf)));
+    });
+  } else {
+    dati.riepilogo.righe.forEach((riga) => corpo.push(riga.map(cellaPdf)));
+  }
+
   autoTable(doc, {
     ...stileTabella,
-    styles: { ...stileTabella.styles, fontSize: 8.5, cellPadding: 2 },
-    startY: doc.lastAutoTable.finalY + 6,
+    margin: { left: margine, right: margine, bottom: margineInferiore },
+    styles: { ...stileTabella.styles, fontSize, cellPadding },
+    startY: inizioTabella,
+    rowPageBreak: 'avoid',
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 52, halign: 'left' },
+    },
     head: [
       [
+        { content: 'N.', rowSpan: 2, styles: { halign: 'center' } },
         { content: 'Giocatore', rowSpan: 2, styles: { halign: 'left' } },
-        ...dati.riepilogo.gruppi.slice(1).map((etichetta) => ({
-          content: etichetta,
-          colSpan: 4,
+        ...dati.riepilogo.colonne.map((gruppo) => ({
+          content: gruppo.label,
+          colSpan: gruppo.sotto.length,
           styles: { halign: 'center' },
         })),
       ],
-      // La colonna "Giocatore" è coperta dal rowSpan della riga sopra.
-      dati.riepilogo.esiti.flatMap(() =>
-        dati.riepilogo.esiti.map((esito) => ({ content: esito, styles: { halign: 'center' } })),
-      ),
+      // Le colonne N. e Giocatore sono coperte dal rowSpan della riga sopra.
+      [
+        ...dati.riepilogo.colonne.flatMap((gruppo) =>
+          gruppo.sotto.map((etichetta) => ({
+            content: etichetta,
+            styles: { halign: 'center' },
+          })),
+        ),
+      ],
     ],
-    body: dati.riepilogo.righe.map((riga) => riga.map(cellaPdf)),
+    body: corpo,
     foot: [dati.riepilogo.totale.map(cellaPdf)],
+    // Linea verticale marcata all'inizio di ogni gruppo di esiti.
+    didDrawCell: (data) => {
+      if (!apreGruppo(data.column.index)) return;
+      const { x, y, height } = data.cell;
+      doc.setDrawColor(...(data.section === 'head' ? [255, 255, 255] : COL_INTTESTAZIONE_RGB));
+      doc.setLineWidth(0.7);
+      doc.line(x, y, x, y + height);
+    },
   });
 
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...COL_MUTE_RGB);
   doc.text(
     testoPdf(`Legenda: ${ESITI.map((esito) => `${esito.id} ${esito.breve}`).join('  ·  ')}`),
     margine,
-    doc.lastAutoTable.finalY + 7,
+    Math.min(doc.lastAutoTable.finalY + 5, altezzaPagina - 7),
   );
 
   scaricaBlob(doc.output('blob'), nomeFileScout(scout, 'pdf'));
