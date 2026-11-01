@@ -400,3 +400,171 @@ export function costruisciRiepilogo(scout, giocatori, setN = null) {
 
   return { righe, totali, totaliPerEsito };
 }
+
+function efficienza(cella) {
+  if (!cella?.tot) return null;
+  return Math.round(
+    ((cella['#'] + cella['+'] - cella['-'] - cella['=']) / cella.tot) * 100,
+  );
+}
+
+function nomeGiocatore(giocatore, numero) {
+  return (
+    `${giocatore?.nome ?? ''} ${giocatore?.cognome ?? ''}`.trim() || `N. ${numero}`
+  );
+}
+
+/**
+ * Riconoscimenti della partita: classifiche e migliori efficienze calcolate
+ * sulle azioni dello scout (o sul singolo set, se indicato).
+ */
+export function riconoscimentiPartita(scout, giocatori = [], setN = null) {
+  const azioni =
+    setN === null || setN === undefined
+      ? Array.isArray(scout?.azioni)
+        ? scout.azioni
+        : []
+      : (Array.isArray(scout?.azioni) ? scout.azioni : []).filter(
+          (azione) => Number(azione.set) === Number(setN),
+        );
+  const rosa = Array.isArray(giocatori) ? giocatori : [];
+  const giocatorePerNumero = new Map(
+    rosa.map((giocatore) => [Number(giocatore.numeroMaglia), giocatore]),
+  );
+  const perNumero = new Map();
+  azioni.forEach((azione) => {
+    const numero = Number(azione.numero);
+    if (!numero || !isAzione(azione.azione) || !isEsito(azione.esito)) return;
+    if (!perNumero.has(numero)) {
+      perNumero.set(numero, Object.fromEntries(AZIONI.map(({ id }) => [id, cellaVuota()])));
+    }
+    const cella = perNumero.get(numero)[azione.azione];
+    cella.tot += 1;
+    cella[azione.esito] += 1;
+  });
+
+  const voci = [...perNumero.entries()].map(([numero, celle]) => ({
+    numero,
+    nome: nomeGiocatore(giocatorePerNumero.get(numero), numero),
+    giocatore: giocatorePerNumero.get(numero),
+    celle,
+  }));
+  const perEfficienza = (azione, filtro) =>
+    voci
+      .filter((voce) => (!filtro || filtro(voce.giocatore)) && voce.celle[azione].tot > 0)
+      .map((voce) => ({
+        numero: voce.numero,
+        nome: voce.nome,
+        efficienza: efficienza(voce.celle[azione]),
+        palloni: voce.celle[azione].tot,
+      }))
+      .sort((a, b) => b.efficienza - a.efficienza || b.palloni - a.palloni || a.numero - b.numero);
+
+  const topAttacco = voci
+    .map((voce) => ({
+      numero: voce.numero,
+      nome: voce.nome,
+      punti: voce.celle.attacco['#'],
+    }))
+    .filter((voce) => voce.punti > 0)
+    .sort((a, b) => b.punti - a.punti || a.numero - b.numero)
+    .slice(0, 3);
+  if (topAttacco.length === 3) {
+    const puntiMinimi = topAttacco[2].punti;
+    topAttacco.push(
+      ...voci
+        .map((voce) => ({ numero: voce.numero, nome: voce.nome, punti: voce.celle.attacco['#'] }))
+        .filter((voce) => voce.punti === puntiMinimi && !topAttacco.some((top) => top.numero === voce.numero)),
+    );
+  }
+  const migliorRicevitore = perEfficienza(
+    'ricezione',
+    (giocatore) => isLibero(giocatore) || String(giocatore?.ruolo ?? '').trim().toLowerCase() === 'schiacciatore',
+  );
+  const migliorAttaccante = perEfficienza(
+    'attacco',
+    (giocatore) =>
+      String(giocatore?.ruolo ?? '').trim().toLowerCase() !== 'palleggiatore' &&
+      !isLibero(giocatore),
+  );
+  const migliorBattitore = perEfficienza('battuta');
+  const aceMan = voci
+    .map((voce) => ({
+      numero: voce.numero,
+      nome: voce.nome,
+      ace: voce.celle.battuta['#'],
+    }))
+    .filter((voce) => voce.ace > 0)
+    .sort((a, b) => b.ace - a.ace || a.numero - b.numero);
+  const aceMassimo = aceMan[0]?.ace ?? 0;
+  const aceVincitori = aceMan.filter((voce) => voce.ace === aceMassimo);
+  const pericoloPubblico = voci
+    .map((voce) => ({
+      numero: voce.numero,
+      nome: voce.nome,
+      errori: AZIONI.reduce((totale, { id }) => totale + voce.celle[id]['='], 0),
+    }))
+    .filter((voce) => voce.errori > 0)
+    .sort((a, b) => b.errori - a.errori || a.numero - b.numero);
+  const erroriMassimi = pericoloPubblico[0]?.errori ?? 0;
+  const pericoloVincitori = pericoloPubblico.filter((voce) => voce.errori === erroriMassimi);
+
+  return {
+    topAttacco,
+    migliorRicevitore: migliorRicevitore.length
+      ? migliorRicevitore.filter((voce) => voce.efficienza === migliorRicevitore[0].efficienza)
+      : [],
+    migliorAttaccante: migliorAttaccante.length
+      ? migliorAttaccante.filter((voce) => voce.efficienza === migliorAttaccante[0].efficienza)
+      : [],
+    migliorBattitore: migliorBattitore.length
+      ? migliorBattitore.filter((voce) => voce.efficienza === migliorBattitore[0].efficienza)
+      : [],
+    aceMan: aceVincitori,
+    pericoloPubblico: pericoloVincitori,
+  };
+}
+
+/** Riconoscimenti cumulativi di tutti gli scout della squadra. */
+export function riconoscimentiSquadra(scouts, giocatori = []) {
+  const scoutPropri = (Array.isArray(scouts) ? scouts : []).filter(
+    (scout) => scout?.squadraOsservata !== 'avversaria',
+  );
+  const azioni = scoutPropri.flatMap((scout) => (Array.isArray(scout.azioni) ? scout.azioni : []));
+  const riconoscimenti = riconoscimentiPartita({ azioni }, giocatori);
+  const panchine = new Map((Array.isArray(giocatori) ? giocatori : []).map((giocatore) => [
+    Number(giocatore.numeroMaglia),
+    0,
+  ]));
+  scoutPropri.forEach((scout) => {
+    const convocati =
+      Array.isArray(scout.convocati) && scout.convocati.length > 0
+        ? scout.convocati
+        : (Array.isArray(giocatori) ? giocatori : []).map((giocatore) => giocatore.numeroMaglia);
+    const rilevati = new Set(
+      (Array.isArray(scout.azioni) ? scout.azioni : []).map((azione) => Number(azione.numero)),
+    );
+    convocati.forEach((numero) => {
+      const n = Number(numero);
+      if (panchine.has(n) && !rilevati.has(n)) panchine.set(n, panchine.get(n) + 1);
+    });
+  });
+  const migliorPanchinaro = [...panchine.entries()]
+    .map(([numero, partite]) => ({
+      numero,
+      nome: nomeGiocatore(
+        (Array.isArray(giocatori) ? giocatori : []).find(
+          (giocatore) => Number(giocatore.numeroMaglia) === numero,
+        ),
+        numero,
+      ),
+      partite,
+    }))
+    .filter((voce) => voce.partite > 0)
+    .sort((a, b) => b.partite - a.partite || a.numero - b.numero);
+  const panchineMassime = migliorPanchinaro[0]?.partite ?? 0;
+  return {
+    ...riconoscimenti,
+    migliorPanchinaro: migliorPanchinaro.filter((voce) => voce.partite === panchineMassime),
+  };
+}

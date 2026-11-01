@@ -16,10 +16,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { getGiocatori, setGiocatori } from '../services/giocatori.js';
+import { getScoutList } from '../services/scout.js';
 import { getSquadraAttiva } from '../services/squadre.js';
+import { riconoscimentiSquadra } from '../lib/scout-stats.js';
 import { downloadJSON, openJSONFile } from '../lib/json-io.js';
 import { useToast } from '../components/Toast.jsx';
 import GiocatoreForm from '../forms/GiocatoreForm.jsx';
+import Riconoscimenti from '../components/scout/Riconoscimenti.jsx';
 import {
   Button,
   ButtonLink,
@@ -108,6 +111,8 @@ export default function Squadra() {
       />
     );
   }
+
+  const riconoscimenti = riconoscimentiSquadra(getScoutList(squadra.id), giocatori);
 
   return (
     <div className="space-y-6">
@@ -201,6 +206,12 @@ export default function Squadra() {
           })}
         </div>
       )}
+
+      <Riconoscimenti
+        riconoscimenti={riconoscimenti}
+        titolo="Migliori della squadra"
+        sottotitolo="Statistiche cumulative di tutti gli scout della squadra."
+      />
 
       <GiocatoreForm
         open={formOpen}
