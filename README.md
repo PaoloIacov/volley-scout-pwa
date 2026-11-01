@@ -27,7 +27,8 @@ e design system a token condivisi.
   validazione dei campi, import/export JSON
 - **Calendario**: CRUD partite (data, orario, avversario, luogo, tipo
   campionato/amichevole), ordinamento per data, evidenziazione delle gare
-  passate, import/export JSON
+  passate, import/export JSON del calendario completo (array di partite o
+  oggetto backup con proprietà `partite`)
 - **Scout**: rilevamento statistico delle partite, creato dalla Home o dal
   pulsante su ogni partita del calendario (dati precompilati, incluso il tipo
   di gara) oppure da zero scegliendo esplicitamente campionato o amichevole.

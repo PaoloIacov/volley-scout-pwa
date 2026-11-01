@@ -1,0 +1,149 @@
+[
+  {
+    "data": "2026-11-07",
+    "orarioInizio": "17:30",
+    "avversario": "USD Sales",
+    "luogo": "Palestra IIS Giovanni Giorgi - Viale Palmiro Togliatti 1161 (entrata via Perlasca) - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2026-11-14",
+    "orarioInizio": "19:00",
+    "avversario": "ASD Polas Vertigo",
+    "luogo": "Palazzetto L. Agliocchi - Ex Vascarelle - Via Vascarelle 110 - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2026-11-21",
+    "orarioInizio": "16:00",
+    "avversario": "ASD Polisportiva Borghesiana",
+    "luogo": "Pallone Maurizio Brasili - Via Lentini, 53 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2026-11-28",
+    "orarioInizio": "19:00",
+    "avversario": "Pol. Casal Bertone A.D.",
+    "luogo": "Palazzetto L. Agliocchi - Ex Vascarelle - Via Vascarelle 110 - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2026-12-06",
+    "orarioInizio": "20:30",
+    "avversario": "Clearmath - Icaro",
+    "luogo": "Oratorio San Paolo Palestra Interna - Viale di San Paolo 12 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2026-12-12",
+    "orarioInizio": "19:00",
+    "avversario": "Roman Volley Yellow",
+    "luogo": "Pallone Tensostatico Collodi - Largo Collodi - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2026-12-19",
+    "orarioInizio": "19:00",
+    "avversario": "Volley Tuscolano",
+    "luogo": "Pallone Tensostatico Collodi - Largo Collodi - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-01-11",
+    "orarioInizio": "21:00",
+    "avversario": "ASD Pallavolo Cinecitta",
+    "luogo": "P.G.S. Oratorio Don Bosco Decemviri - Piazza dei Decemviri, 2 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-01-16",
+    "orarioInizio": "19:00",
+    "avversario": "SG Pro Go",
+    "luogo": "Pallone Tensostatico Collodi - Largo Collodi - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-01-24",
+    "orarioInizio": "18:30",
+    "avversario": "ASD Oltremare Pallavolo",
+    "luogo": "I.C. Enrico Pestalozzi - Via Gran Bretagna 25 - Pomezia - Torvaianica",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-02-13",
+    "orarioInizio": "17:20",
+    "avversario": "GS Quintilia M1",
+    "luogo": "Pallone Mamertina - Via Oppido Mamertina 66-68 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-02-20",
+    "orarioInizio": "19:00",
+    "avversario": "USD Sales",
+    "luogo": "Palazzetto L. Agliocchi - Ex Vascarelle - Via Vascarelle 110 - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-02-28",
+    "orarioInizio": "20:30",
+    "avversario": "ASD Polas Vertigo",
+    "luogo": "Pall. Giordano Bruno Campo Centrale - Via Paolo Monelli, 5 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-03-06",
+    "orarioInizio": "19:00",
+    "avversario": "ASD Polisportiva Borghesiana",
+    "luogo": "Palazzetto L. Agliocchi - Ex Vascarelle - Via Vascarelle 110 - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-03-13",
+    "orarioInizio": "19:30",
+    "avversario": "Pol. Casal Bertone A.D.",
+    "luogo": "I.I.S.S. J. Von Neumann - Via Pollenza 115 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-03-20",
+    "orarioInizio": "19:00",
+    "avversario": "Clearmath - Icaro",
+    "luogo": "Palazzetto L. Agliocchi - Ex Vascarelle - Via Vascarelle 110 - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-04-04",
+    "orarioInizio": "18:30",
+    "avversario": "Roman Volley Yellow",
+    "luogo": "I.I.S. Leopoldo Pirelli - Via Rocca di Papa, 113 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-04-11",
+    "orarioInizio": "16:00",
+    "avversario": "Volley Tuscolano",
+    "luogo": "Palestra ITC Sandro Pertini - Via Lentini 78 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-04-17",
+    "orarioInizio": "19:00",
+    "avversario": "ASD Pallavolo Cinecitta",
+    "luogo": "Pallone Tensostatico Collodi - Largo Collodi - Albano Laziale",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-04-26",
+    "orarioInizio": "21:00",
+    "avversario": "SG Pro Go",
+    "luogo": "S.E. G. Franceschi - Via Fonteiana, 166 - Roma",
+    "tipo": "campionato"
+  },
+  {
+    "data": "2027-05-01",
+    "orarioInizio": "19:00",
+    "avversario": "ASD Oltremare Pallavolo",
+    "luogo": "Palazzetto L. Agliocchi - Ex Vascarelle - Via Vascarelle 110 - Albano Laziale",
+    "tipo": "campionato"
+  }
+]

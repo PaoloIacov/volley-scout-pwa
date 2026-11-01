@@ -72,11 +72,12 @@ export default function Calendario() {
   const handleImportClick = async () => {
     const data = await openJSONFile();
     if (data === null) return;
-    if (data?.__invalid || !Array.isArray(data)) {
-      toast.show('Il file non contiene un array di partite valido.', 'error');
+    const partiteImportate = Array.isArray(data) ? data : data?.partite;
+    if (data?.__invalid || !Array.isArray(partiteImportate)) {
+      toast.show('Il file non contiene un calendario di partite valido.', 'error');
       return;
     }
-    setPendingImport(data);
+    setPendingImport(partiteImportate);
   };
 
   const confirmImport = () => {
@@ -120,7 +121,7 @@ export default function Calendario() {
             </Button>
             <Button variant="outline" onClick={handleImportClick}>
               <Upload size={16} />
-              Importa
+              Importa calendario
             </Button>
             <Button variant="outline" onClick={handleExport} disabled={partite.length === 0}>
               <Download size={16} />
@@ -134,7 +135,7 @@ export default function Calendario() {
         <EmptyState
           icon={CalendarDays}
           title="Nessuna partita in calendario"
-          description="Aggiungi la prima partita oppure importa un file JSON exportato in precedenza."
+          description="Aggiungi la prima partita oppure importa il calendario completo da un file JSON."
           action={
             <Button onClick={openNew}>
               <Plus size={16} />
