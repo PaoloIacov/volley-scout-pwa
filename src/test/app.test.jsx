@@ -1485,7 +1485,7 @@ describe('export scout', () => {
     azioni: [
       { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '=' },
       { id: 'a2', ts: 2, set: 1, numero: 10, azione: 'attacco', esito: '#' },
-      { id: 'a3', ts: 3, set: 2, numero: 7, azione: 'muro', esito: '+' },
+      { id: 'a3', ts: 3, set: 2, numero: 7, azione: 'attacco', esito: '+' },
     ],
     generici: [
       { id: 'g1', ts: 4, set: 1 },
@@ -1540,8 +1540,8 @@ describe('export scout', () => {
     expect(
       dati.riepilogo.gruppiRuolo.map((gruppo) => gruppo.righe.map((riga) => riga[0])),
     ).toEqual([[10], [7]]);
-    // Numero e nome sono colonne separate; una colonna per esito per ogni
-    // azione (4 × 4), più il Tot suddiviso.
+    // Numero e nome sono colonne separate; le azioni con percentuali hanno
+    // anche Pos ed Eff, mentre Tot resta suddiviso per esito.
     expect(dati.riepilogo.righe).toEqual([
       [
         10,
@@ -1550,10 +1550,14 @@ describe('export scout', () => {
         0,
         0,
         0, // ricezione
+        null,
+        null,
         1,
         0,
         0,
         1, // attacco
+        50,
+        0,
         0,
         0,
         0,
@@ -1562,6 +1566,8 @@ describe('export scout', () => {
         0,
         0,
         0, // battuta
+        null,
+        null,
         1,
         0,
         0,
@@ -1574,18 +1580,24 @@ describe('export scout', () => {
         0,
         0,
         0, // ricezione
-        0,
-        0,
-        0,
-        0, // attacco
+        null,
+        null,
         0,
         1,
+        0,
+        0, // attacco
+        100,
+        100,
+        0,
+        0,
         0,
         0, // muro
         0,
         0,
         0,
         0, // battuta
+        null,
+        null,
         0,
         1,
         0,
@@ -1599,18 +1611,24 @@ describe('export scout', () => {
       0,
       0,
       0, // ricezione
+      null,
+      null,
       1,
-      0,
+      1,
       0,
       1, // attacco
+      67,
+      33,
       0,
-      1,
+      0,
       0,
       0, // muro
       0,
       0,
       0,
       0, // battuta
+      null,
+      null,
       1,
       1,
       0,

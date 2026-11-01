@@ -125,8 +125,8 @@ function apreGruppo(indice) {
  * @param {Array} giocatori rosa della squadra che possiede lo scout
  * @param {string} squadraNome nome della squadra (per l'info)
  */
-export function costruisciExport(scout, giocatori = [], squadraNome = '') {
-  const { righe, totali, totaliPerEsito } = costruisciRiepilogo(scout, giocatori);
+export function costruisciExport(scout, giocatori = [], squadraNome = '', setN = null) {
+  const { righe, totali, totaliPerEsito } = costruisciRiepilogo(scout, giocatori, setN);
 
   const osservata =
     scout.squadraOsservata === 'avversaria' ? 'Avversaria' : squadraNome || 'Propria';
@@ -154,14 +154,17 @@ export function costruisciExport(scout, giocatori = [], squadraNome = '') {
   const avversari = new Map(erroriAvversariPerSet(scout).map((voce) => [voce.set, voce.n]));
 
   /**
-   * Positività (`#` / palloni) ed Efficienza ((`#` - `=`) / palloni), in
-   * percentuale intera. `null` quando non ci sono palloni per quell'azione.
+   * Positività ((`#` + `+`) / palloni) ed Efficienza ((`#` + `+` - `-` - `=`)
+   * / palloni), in percentuale intera. `null` quando non ci sono palloni per
+   * quell'azione.
    */
   const percentuali = (cella) => {
     if (!cella.tot) return [null, null];
     return [
-      Math.round((cella['#'] / cella.tot) * 100),
-      Math.round(((cella['#'] - cella['=']) / cella.tot) * 100),
+      Math.round(((cella['#'] + cella['+']) / cella.tot) * 100),
+      Math.round(
+        ((cella['#'] + cella['+'] - cella['-'] - cella['=']) / cella.tot) * 100,
+      ),
     ];
   };
 
@@ -222,6 +225,7 @@ export function costruisciExport(scout, giocatori = [], squadraNome = '') {
 
   return {
     titolo: scout.avversario ? `Scout vs ${scout.avversario}` : 'Scout',
+    setN,
     info,
     punteggio: {
       header: ['Set', 'Noi', 'Loro', 'Generici', 'Errori avv.'],
@@ -446,20 +450,6 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     return righe;
   };
 
-  const righe = [];
-  righe.push([
-    cella(dati.titolo, {
-      ...stile.titolo,
-      columnSpan: 2 + COLONNE_NUMERICHE,
-    }),
-    ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
-  ]);
-  righe.push([]);
-  righeInfo().forEach((riga) => righe.push(riga));
-  righe.push([]);
-  righe.push(rigaSezione('Punteggio'));
-  // La colonna N. è stretta: il punteggio usa due colonne per ogni voce, così
-  // anche "Errori avv." resta leggibile.
   const rigaPunteggio = (valori, stileCella = {}) => {
     const riga = [
       cellaBordata(valori[0], { ...stileCella, columnSpan: 2, align: 'left' }),
@@ -471,18 +461,16 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     });
     return riga;
   };
-  righe.push(rigaPunteggio(dati.punteggio.header, stile.intestazione));
-  dati.punteggio.righe.forEach((riga) => righe.push(rigaPunteggio(riga)));
-  righe.push(rigaPunteggio(dati.punteggio.totale, stile.totale));
-  righe.push([]);
-  righe.push(rigaSezione('Riepilogo'));
+
+  const creaRigheRiepilogo = (datiRiepilogo) => {
+    const righe = [rigaSezione('Riepilogo')];
   // Intestazione a due livelli: N. e Giocatore occupano due righe; ogni
   // gruppo è unito sulla sua larghezza (4 esiti, più Pos/Eff dove previste)
   // e ha un bordo sinistro marcato.
-  righe.push([
+    righe.push([
     cella('N.', { ...stile.intestazione, align: 'center', rowSpan: 2 }),
     cella('Giocatore', { ...stile.intestazione, align: 'left', rowSpan: 2 }),
-    ...dati.riepilogo.colonne.flatMap((gruppo) => [
+    ...datiRiepilogo.riepilogo.colonne.flatMap((gruppo) => [
       cella(gruppo.label, {
         ...stile.intestazione,
         ...stile.intestazioneGruppo,
@@ -495,7 +483,7 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
   righe.push([
     null, // coperta da "N." con rowSpan: 2
     null, // coperta da "Giocatore" con rowSpan: 2
-    ...dati.riepilogo.colonne.flatMap((gruppo) =>
+    ...datiRiepilogo.riepilogo.colonne.flatMap((gruppo) =>
       gruppo.sotto.map((etichetta, i) =>
         cella(etichetta, {
           ...stile.intestazione,
@@ -507,8 +495,8 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
   ]);
   // Una riga di gruppo per ruolo, poi i giocatori di quel ruolo. Quando non
   // ci sono ruoli (scout dell'avversaria) le righe restano in sequenza.
-  if (dati.riepilogo.gruppiRuolo.length > 0) {
-    dati.riepilogo.gruppiRuolo.forEach((gruppo) => {
+    if (datiRiepilogo.riepilogo.gruppiRuolo.length > 0) {
+      datiRiepilogo.riepilogo.gruppiRuolo.forEach((gruppo) => {
       righe.push([
         cella(gruppo.ruolo.toUpperCase(), {
           fontWeight: 'bold',
@@ -519,45 +507,71 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
           alignVertical: 'center',
           borderStyle: 'thin',
           borderColor: COL_LINEA,
-          columnSpan: 2 + COLONNE_NUMERICHE,
+            columnSpan: 2 + COLONNE_NUMERICHE,
         }),
         ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
       ]);
-      gruppo.righe.forEach((riga) =>
+        gruppo.righe.forEach((riga) =>
         righe.push(riga.map((voce, i) => cellaNumero(voce, i))),
-      );
-    });
-  } else {
-    dati.riepilogo.righe.forEach((riga) =>
+        );
+      });
+    } else {
+      datiRiepilogo.riepilogo.righe.forEach((riga) =>
       righe.push(riga.map((voce, i) => cellaNumero(voce, i))),
+      );
+    }
+    righe.push(
+      datiRiepilogo.riepilogo.totale.map((voce, i) => cellaNumero(voce, i, stile.totale)),
     );
-  }
-  righe.push(dati.riepilogo.totale.map((voce, i) => cellaNumero(voce, i, stile.totale)));
-  righe.push([]);
-  righe.push([
-    cella(`Legenda: ${ESITI.map((esito) => `${esito.id} ${esito.breve}`).join('  ·  ')}`, {
-      textColor: COL_MUTE,
-      columnSpan: 2 + COLONNE_NUMERICHE,
-    }),
-    ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
-  ]);
+    righe.push([]);
+    righe.push([
+      cella(`Legenda: ${ESITI.map((esito) => `${esito.id} ${esito.breve}`).join('  ·  ')}`, {
+        textColor: COL_MUTE,
+        columnSpan: 2 + COLONNE_NUMERICHE,
+      }),
+      ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
+    ]);
+    return righe;
+  };
 
-  const blob = await writeExcelFile(
-    righe,
-    {
-      sheet: 'Scout',
-      orientation: 'landscape',
-      showGridLines: false,
-      // Numero stretto, nome largo, poi le colonne numeriche (esiti e
-      // percentuali) con larghezza compatta per restare leggibili.
-      columns: [
-        { width: 6 },
-        { width: 26 },
-        ...Array.from({ length: COLONNE_NUMERICHE }, () => ({ width: 7.5 })),
-      ],
-    },
-    { fontFamily: 'Calibri', fontSize: 11 },
-  ).toBlob();
+  const righePartita = [
+    [
+      cella(dati.titolo, {
+        ...stile.titolo,
+        columnSpan: 2 + COLONNE_NUMERICHE,
+      }),
+      ...Array.from({ length: 1 + COLONNE_NUMERICHE }, () => null),
+    ],
+    [],
+    ...righeInfo(),
+    [],
+    rigaSezione('Punteggio'),
+    rigaPunteggio(dati.punteggio.header, stile.intestazione),
+    ...dati.punteggio.righe.map((riga) => rigaPunteggio(riga)),
+    rigaPunteggio(dati.punteggio.totale, stile.totale),
+  ];
+  const opzioniFoglio = (nome) => ({
+    sheet: nome,
+    orientation: 'landscape',
+    showGridLines: false,
+    columns: [
+      { width: 6 },
+      { width: 26 },
+      ...Array.from({ length: COLONNE_NUMERICHE }, () => ({ width: 7.5 })),
+    ],
+  });
+  const fogli = [
+    { data: righePartita, ...opzioniFoglio('Partita') },
+    { data: creaRigheRiepilogo(dati), ...opzioniFoglio('Totale giocatori') },
+    ...scout.sets.map((set) => {
+      const datiSet = costruisciExport(scout, giocatori, squadraNome, set.n);
+      return {
+        data: creaRigheRiepilogo(datiSet),
+        ...opzioniFoglio(`Set ${set.n}`),
+      };
+    }),
+  ];
+  const blob = await writeExcelFile(fogli, { fontFamily: 'Calibri', fontSize: 11 }).toBlob();
   scaricaBlob(blob, nomeFileScout(scout, 'xlsx'));
 }
 
@@ -648,24 +662,6 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
     foot: [dati.punteggio.totale.map((voce) => testoPdf(voce))],
   });
 
-  // Pagina 2: sempre la sola tabella dei giocatori, dimensionata per stare
-  // interamente in una pagina anche con rose numerose.
-  doc.addPage();
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...COL_TESTO_RGB);
-  doc.text(testoPdf('Riepilogo giocatori'), margine, 15);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...COL_MUTE_RGB);
-  doc.text(
-    testoPdf([dati.titolo, toItalianDate(scout.data), squadraNome].filter(Boolean).join('  ·  ')),
-    margine,
-    20.5,
-  );
-
   /**
    * Cella del riepilogo PDF: numeri colorati per esito, percentuali con il
    * segno (verde sopra zero, rosso sotto zero), grigi quando zero o assenti.
@@ -701,101 +697,122 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
     };
   };
 
-  const inizioTabella = 26;
-  const altezzaPagina = doc.internal.pageSize.getHeight();
-  const margineInferiore = 12;
-  const spazioLegenda = 10;
-  const altezzaDisponibile = altezzaPagina - inizioTabella - margineInferiore - spazioLegenda;
-  // Righe del corpo (giocatori + intestazioni di ruolo) + 2 di testata + 1 di totale.
-  const righeCorpo =
-    dati.riepilogo.gruppiRuolo.length > 0
-      ? dati.riepilogo.gruppiRuolo.reduce(
-          (somma, gruppo) => somma + 1 + gruppo.righe.length,
-          0,
-        )
-      : dati.riepilogo.righe.length;
-  const numeroRighe = righeCorpo + 3;
+  const renderPaginaRiepilogo = (datiPagina, titoloPagina, sottotitolo) => {
+    doc.addPage();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(...COL_TESTO_RGB);
+    doc.text(testoPdf(titoloPagina), margine, 15);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...COL_MUTE_RGB);
+    doc.text(testoPdf(sottotitolo), margine, 20.5);
 
-  // Riduce font e padding finché la tabella non entra nella pagina.
-  let fontSize = 8.5;
-  let cellPadding = 1.9;
-  const altezzaStimata = () => numeroRighe * (fontSize * 0.3528 * 1.15 + cellPadding * 2);
-  while (altezzaStimata() > altezzaDisponibile && fontSize > 4.5) {
-    fontSize = Math.max(4.5, Number((fontSize - 0.25).toFixed(2)));
-    cellPadding = Math.max(0.6, Number((fontSize * 0.22).toFixed(2)));
-  }
+    const inizioTabella = 26;
+    const altezzaPagina = doc.internal.pageSize.getHeight();
+    const margineInferiore = 12;
+    const spazioLegenda = 10;
+    const altezzaDisponibile = altezzaPagina - inizioTabella - margineInferiore - spazioLegenda;
+    const righeCorpo =
+      datiPagina.riepilogo.gruppiRuolo.length > 0
+        ? datiPagina.riepilogo.gruppiRuolo.reduce(
+            (somma, gruppo) => somma + 1 + gruppo.righe.length,
+            0,
+          )
+        : datiPagina.riepilogo.righe.length;
+    const numeroRighe = righeCorpo + 3;
+    let fontSize = 8.5;
+    let cellPadding = 1.9;
+    const altezzaStimata = () => numeroRighe * (fontSize * 0.3528 * 1.15 + cellPadding * 2);
+    while (altezzaStimata() > altezzaDisponibile && fontSize > 4.5) {
+      fontSize = Math.max(4.5, Number((fontSize - 0.25).toFixed(2)));
+      cellPadding = Math.max(0.6, Number((fontSize * 0.22).toFixed(2)));
+    }
 
-  const corpo = [];
-  if (dati.riepilogo.gruppiRuolo.length > 0) {
-    dati.riepilogo.gruppiRuolo.forEach((gruppo) => {
-      corpo.push([
-        {
-          content: testoPdf(gruppo.ruolo.toUpperCase()),
-          colSpan: 2 + COLONNE_NUMERICHE,
-          styles: {
-            halign: 'left',
-            fontStyle: 'bold',
-            fontSize: Math.max(6, Number((fontSize - 0.3).toFixed(2))),
-            fillColor: COL_TOTALE_RGB,
-            textColor: COL_TESTO_RGB,
+    const corpo = [];
+    if (datiPagina.riepilogo.gruppiRuolo.length > 0) {
+      datiPagina.riepilogo.gruppiRuolo.forEach((gruppo) => {
+        corpo.push([
+          {
+            content: testoPdf(gruppo.ruolo.toUpperCase()),
+            colSpan: 2 + COLONNE_NUMERICHE,
+            styles: {
+              halign: 'left',
+              fontStyle: 'bold',
+              fontSize: Math.max(6, Number((fontSize - 0.3).toFixed(2))),
+              fillColor: COL_TOTALE_RGB,
+              textColor: COL_TESTO_RGB,
+            },
           },
-        },
-      ]);
-      gruppo.righe.forEach((riga) => corpo.push(riga.map(cellaPdf)));
-    });
-  } else {
-    dati.riepilogo.righe.forEach((riga) => corpo.push(riga.map(cellaPdf)));
-  }
+        ]);
+        gruppo.righe.forEach((riga) => corpo.push(riga.map(cellaPdf)));
+      });
+    } else {
+      datiPagina.riepilogo.righe.forEach((riga) => corpo.push(riga.map(cellaPdf)));
+    }
 
-  autoTable(doc, {
-    ...stileTabella,
-    margin: { left: margine, right: margine, bottom: margineInferiore },
-    styles: { ...stileTabella.styles, fontSize, cellPadding },
-    startY: inizioTabella,
-    rowPageBreak: 'avoid',
-    columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 52, halign: 'left' },
-    },
-    head: [
-      [
-        { content: 'N.', rowSpan: 2, styles: { halign: 'center' } },
-        { content: 'Giocatore', rowSpan: 2, styles: { halign: 'left' } },
-        ...dati.riepilogo.colonne.map((gruppo) => ({
-          content: gruppo.label,
-          colSpan: gruppo.sotto.length,
-          styles: { halign: 'center' },
-        })),
-      ],
-      // Le colonne N. e Giocatore sono coperte dal rowSpan della riga sopra.
-      [
-        ...dati.riepilogo.colonne.flatMap((gruppo) =>
-          gruppo.sotto.map((etichetta) => ({
-            content: etichetta,
+    autoTable(doc, {
+      ...stileTabella,
+      margin: { left: margine, right: margine, bottom: margineInferiore },
+      styles: { ...stileTabella.styles, fontSize, cellPadding },
+      startY: inizioTabella,
+      rowPageBreak: 'avoid',
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 52, halign: 'left' },
+      },
+      head: [
+        [
+          { content: 'N.', rowSpan: 2, styles: { halign: 'center' } },
+          { content: 'Giocatore', rowSpan: 2, styles: { halign: 'left' } },
+          ...datiPagina.riepilogo.colonne.map((gruppo) => ({
+            content: gruppo.label,
+            colSpan: gruppo.sotto.length,
             styles: { halign: 'center' },
           })),
-        ),
+        ],
+        [
+          ...datiPagina.riepilogo.colonne.flatMap((gruppo) =>
+            gruppo.sotto.map((etichetta) => ({
+              content: etichetta,
+              styles: { halign: 'center' },
+            })),
+          ),
+        ],
       ],
-    ],
-    body: corpo,
-    foot: [dati.riepilogo.totale.map(cellaPdf)],
-    // Linea verticale marcata all'inizio di ogni gruppo di esiti.
-    didDrawCell: (data) => {
-      if (!apreGruppo(data.column.index)) return;
-      const { x, y, height } = data.cell;
-      doc.setDrawColor(...(data.section === 'head' ? [255, 255, 255] : COL_INTTESTAZIONE_RGB));
-      doc.setLineWidth(0.7);
-      doc.line(x, y, x, y + height);
-    },
-  });
+      body: corpo,
+      foot: [datiPagina.riepilogo.totale.map(cellaPdf)],
+      didDrawCell: (data) => {
+        if (!apreGruppo(data.column.index)) return;
+        const { x, y, height } = data.cell;
+        doc.setDrawColor(...(data.section === 'head' ? [255, 255, 255] : COL_INTTESTAZIONE_RGB));
+        doc.setLineWidth(0.7);
+        doc.line(x, y, x, y + height);
+      },
+    });
 
-  doc.setFontSize(8);
-  doc.setTextColor(...COL_MUTE_RGB);
-  doc.text(
-    testoPdf(`Legenda: ${ESITI.map((esito) => `${esito.id} ${esito.breve}`).join('  ·  ')}`),
-    margine,
-    Math.min(doc.lastAutoTable.finalY + 5, altezzaPagina - 7),
+    doc.setFontSize(8);
+    doc.setTextColor(...COL_MUTE_RGB);
+    doc.text(
+      testoPdf(`Legenda: ${ESITI.map((esito) => `${esito.id} ${esito.breve}`).join('  ·  ')}`),
+      margine,
+      Math.min(doc.lastAutoTable.finalY + 5, altezzaPagina - 7),
+    );
+  };
+
+  renderPaginaRiepilogo(
+    dati,
+    'Riepilogo giocatori',
+    [dati.titolo, toItalianDate(scout.data), squadraNome].filter(Boolean).join('  ·  '),
   );
+  scout.sets.forEach((set) => {
+    const datiSet = costruisciExport(scout, giocatori, squadraNome, set.n);
+    renderPaginaRiepilogo(
+      datiSet,
+      `Riepilogo giocatori - Set ${set.n}`,
+      [dati.titolo, `Set ${set.n}`, toItalianDate(scout.data)].filter(Boolean).join('  ·  '),
+    );
+  });
 
   scaricaBlob(doc.output('blob'), nomeFileScout(scout, 'pdf'));
 }
