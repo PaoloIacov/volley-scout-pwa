@@ -26,6 +26,10 @@ const COL_TESTO_RGB = [24, 24, 27];
 const COL_MUTE_RGB = [113, 113, 122];
 const COL_LINEA_RGB = [228, 228, 231];
 const COL_LINEA = '#e4e4e7';
+const COL_LINEA_SCURA_RGB = [161, 161, 170];
+const COL_LINEA_SCURA = '#a1a1aa';
+const COL_SEZIONE_RGB = [63, 63, 70];
+const COL_SEZIONE = '#3f3f46';
 const COL_MUTE = '#71717a';
 /** Colori degli esiti, allineati ai token del tema chiaro dell'app. */
 const COL_ESITI = { '#': '#059669', '+': '#0284c7', '-': '#d97706', '=': '#dc2626' };
@@ -264,6 +268,68 @@ export function costruisciExport(scout, giocatori = [], squadraNome = '', setN =
 }
 
 /**
+ * Classifiche dei riconoscimenti nell'ordine in cui vengono stampate, con il
+ * dettaglio del valore e il campo usato per rilevare i pari merito.
+ */
+function classificheRiconoscimenti(riconoscimenti) {
+  return [
+    {
+      label: 'Top 3 punti fatti',
+      voci: riconoscimenti.topPunti,
+      dettaglio: (voce) => `${voce.punti} pt`,
+      valore: (voce) => voce.punti,
+    },
+    {
+      label: 'Top 3 efficienza in ricezione',
+      voci: riconoscimenti.topEfficienzaRicezione,
+      dettaglio: (voce) => `${voce.efficienza}%`,
+      valore: (voce) => voce.efficienza,
+    },
+    {
+      label: 'Top 3 efficienza in attacco',
+      voci: riconoscimenti.topEfficienzaAttacco,
+      dettaglio: (voce) => `${voce.efficienza}%`,
+      valore: (voce) => voce.efficienza,
+    },
+    {
+      label: 'Top 3 efficienza in battuta',
+      voci: riconoscimenti.topEfficienzaBattuta,
+      dettaglio: (voce) => `${voce.efficienza}%`,
+      valore: (voce) => voce.efficienza,
+    },
+    {
+      label: 'Top 3 Ace-man',
+      voci: riconoscimenti.topAceMan,
+      dettaglio: (voce) => `${voce.ace} ace`,
+      valore: (voce) => voce.ace,
+    },
+    {
+      label: 'Top 3 Pericolo pubblico',
+      voci: riconoscimenti.topPericoloPubblico,
+      dettaglio: (voce) => `${voce.errori} errori`,
+      valore: (voce) => voce.errori,
+    },
+  ];
+}
+
+/**
+ * Posizione in classifica di ogni voce, con pari merito: valori uguali
+ * ricevono la stessa posizione e la successiva salta (1, 1, 3, ...).
+ */
+function posizioniClassifica(voci, valore) {
+  let posizione = 0;
+  let ultimo;
+  return voci.map((voce, indice) => {
+    const corrente = valore(voce);
+    if (indice === 0 || corrente !== ultimo) {
+      posizione = indice + 1;
+      ultimo = corrente;
+    }
+    return posizione;
+  });
+}
+
+/**
  * Divide le informazioni della partita in righe da `perRiga` coppie
  * etichetta/valore: serve a occupare tutta la larghezza del foglio/PDF
  * invece di impilare i dati in un'unica colonna.
@@ -465,40 +531,66 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     return riga;
   };
 
-  const nomiRiconoscimento = (valori, dettaglio) =>
-    valori.length > 0 ? valori.map((valore) => `${valore.nome} (${dettaglio(valore)})`).join(', ') : 'N/D';
   const righeRiconoscimenti = () => {
-    const riconoscimenti = dati.riconoscimenti;
-    const righe = [
-      [
-        'Top 3 punti fatti',
-        nomiRiconoscimento(riconoscimenti.topPunti, (valore) => `${valore.punti} pt`),
-      ],
-      [
-        'Top 3 efficienza in ricezione',
-        nomiRiconoscimento(riconoscimenti.topEfficienzaRicezione, (valore) => `${valore.efficienza}%`),
-      ],
-      [
-        'Top 3 efficienza in attacco',
-        nomiRiconoscimento(riconoscimenti.topEfficienzaAttacco, (valore) => `${valore.efficienza}%`),
-      ],
-      [
-        'Top 3 efficienza in battuta',
-        nomiRiconoscimento(riconoscimenti.topEfficienzaBattuta, (valore) => `${valore.efficienza}%`),
-      ],
-      [
-        'Top 3 Ace-man',
-        nomiRiconoscimento(riconoscimenti.topAceMan, (valore) => `${valore.ace} ace`),
-      ],
-      [
-        'Top 3 Pericolo pubblico',
-        nomiRiconoscimento(riconoscimenti.topPericoloPubblico, (valore) => `${valore.errori} errori`),
-      ],
-    ];
-    return righe.map(([label, value]) => [
-      cella(label, { ...stile.etichetta, align: 'left' }),
-      cella(value, { ...stile.valoreInfo, align: 'left', wrap: true }),
-    ]);
+    const righe = [];
+    const stileCella = {
+      borderStyle: 'thin',
+      borderColor: COL_LINEA_SCURA,
+      alignVertical: 'center',
+    };
+    const bordoSezione = {
+      borderStyle: 'medium',
+      borderColor: COL_SEZIONE,
+    };
+    classificheRiconoscimenti(dati.riconoscimenti).forEach(
+      ({ label, voci, dettaglio, valore }) => {
+        if (voci.length === 0) {
+          righe.push([
+            cella(label, { ...stile.etichetta, ...bordoSezione, align: 'left' }),
+            cella('N/D', {
+              ...stileCella,
+              ...bordoSezione,
+              align: 'left',
+              columnSpan: 3,
+              textColor: COL_MUTE,
+            }),
+            null,
+            null,
+          ]);
+          return;
+        }
+        const posizioni = posizioniClassifica(voci, valore);
+        voci.forEach((voce, indice) => {
+          righe.push([
+            indice === 0
+              ? cella(label, {
+                  ...stile.etichetta,
+                  ...bordoSezione,
+                  align: 'left',
+                  alignVertical: 'top',
+                  rowSpan: voci.length,
+                })
+              : null,
+            cella(String(posizioni[indice]), {
+              ...stileCella,
+              ...(indice === 0 ? bordoSezione : {}),
+              align: 'center',
+            }),
+            cella(voce.nome, {
+              ...stileCella,
+              ...(indice === 0 ? bordoSezione : {}),
+              align: 'left',
+            }),
+            cella(dettaglio(voce), {
+              ...stileCella,
+              ...(indice === 0 ? bordoSezione : {}),
+              align: 'center',
+            }),
+          ]);
+        });
+      },
+    );
+    return righe;
   };
 
   const creaRigheRiepilogo = (datiRiepilogo) => {
@@ -593,21 +685,27 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     [
       cella('Migliori della partita', {
         ...stile.titolo,
-        columnSpan: 2,
+        columnSpan: 4,
       }),
+      null,
+      null,
       null,
     ],
     [
       cella('Classifiche basate sulle azioni registrate nella partita.', {
         textColor: COL_MUTE,
-        columnSpan: 2,
+        columnSpan: 4,
       }),
+      null,
+      null,
       null,
     ],
     [],
     [
       cella('Classifica', { ...stile.intestazione, align: 'left' }),
-      cella('Giocatori', { ...stile.intestazione, align: 'left' }),
+      cella('Pos.', { ...stile.intestazione, align: 'center' }),
+      cella('Giocatore', { ...stile.intestazione, align: 'left' }),
+      cella('Valore', { ...stile.intestazione, align: 'center' }),
     ],
     ...righeRiconoscimenti(),
   ];
@@ -625,7 +723,7 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     sheet: 'Migliori',
     orientation: 'landscape',
     showGridLines: false,
-    columns: [{ width: 42 }, { width: 90 }],
+    columns: [{ width: 38 }, { width: 7 }, { width: 28 }, { width: 14 }],
   };
   const fogli = [
     { data: righePartita, ...opzioniFoglio('Partita') },
@@ -730,18 +828,6 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
     foot: [dati.punteggio.totale.map((voce) => testoPdf(voce))],
   });
 
-  const formatRiconoscimento = (voci) => {
-    if (!voci.length) return 'N/D';
-    return voci
-      .map((voce) => {
-        if ('punti' in voce) return `${voce.nome} (${voce.punti} pt)`;
-        if ('efficienza' in voce) return `${voce.nome} (${voce.efficienza}%)`;
-        if ('errori' in voce) return `${voce.nome} (${voce.errori} errori)`;
-        return `${voce.nome} (${voce.ace} ace)`;
-      })
-      .join(', ');
-  };
-
   // Pagina 2: tutti i riconoscimenti su una pagina dedicata, così le sei
   // classifiche restano visibili insieme senza spezzarsi.
   doc.addPage();
@@ -760,26 +846,86 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
     20.5,
   );
 
-  const topPdf = dati.riconoscimenti;
+  const classifiche = classificheRiconoscimenti(dati.riconoscimenti);
+  const corpoRiconoscimenti = classifiche.flatMap(({ label, voci, dettaglio, valore }) => {
+    if (voci.length === 0) {
+      return [
+        [
+          {
+            content: testoPdf(label),
+            isCategoria: true,
+            rowSpan: 1,
+            styles: { fontStyle: 'bold', fillColor: COL_TOTALE_RGB, valign: 'top' },
+          },
+          { content: 'N/D', colSpan: 3, styles: { halign: 'left' } },
+        ],
+      ];
+    }
+    const posizioni = posizioniClassifica(voci, valore);
+    return voci.map((voce, indice) => {
+      const riga = [];
+      if (indice === 0) {
+        riga.push({
+          content: testoPdf(label),
+          isCategoria: true,
+          rowSpan: voci.length,
+          styles: { fontStyle: 'bold', fillColor: COL_TOTALE_RGB, valign: 'top' },
+        });
+      }
+      riga.push({ content: String(posizioni[indice]), styles: { halign: 'center' } });
+      riga.push({ content: testoPdf(voce.nome), styles: { halign: 'left' } });
+      riga.push({ content: testoPdf(dettaglio(voce)), styles: { halign: 'center' } });
+      return riga;
+    });
+  });
+
+  // Riduce il font se i pari merito allungano le classifiche: la pagina
+  // dedicata deve contenerle tutte senza spezzarsi.
+  const altezzaPagina = doc.internal.pageSize.getHeight();
+  const altezzaDisponibile = altezzaPagina - 26 - 12 - 6;
+  const numeroRighe = corpoRiconoscimenti.length + 1;
+  let fontSize = 9.5;
+  let cellPadding = 2.5;
+  const altezzaStimata = () =>
+    numeroRighe * (fontSize * 0.3528 * 1.22 + cellPadding * 2 + 0.2);
+  while (altezzaStimata() > altezzaDisponibile && fontSize > 5.5) {
+    fontSize = Math.max(5.5, Number((fontSize - 0.25).toFixed(2)));
+    cellPadding = Math.max(0.6, Number((fontSize * 0.22).toFixed(2)));
+  }
+
   autoTable(doc, {
     ...stileTabella,
     startY: 26,
     styles: {
       ...stileTabella.styles,
-      fontSize: 10,
-      cellPadding: 3.5,
+      fontSize,
+      cellPadding,
       overflow: 'linebreak',
+      lineColor: COL_LINEA_SCURA_RGB,
+      lineWidth: 0.15,
     },
-    head: [['Classifica', 'Giocatori']],
-    body: [
-      ['Top 3 punti fatti', formatRiconoscimento(topPdf.topPunti)],
-      ['Top 3 efficienza in ricezione', formatRiconoscimento(topPdf.topEfficienzaRicezione)],
-      ['Top 3 efficienza in attacco', formatRiconoscimento(topPdf.topEfficienzaAttacco)],
-      ['Top 3 efficienza in battuta', formatRiconoscimento(topPdf.topEfficienzaBattuta)],
-      ['Top 3 Ace-man', formatRiconoscimento(topPdf.topAceMan)],
-      ['Top 3 Pericolo pubblico', formatRiconoscimento(topPdf.topPericoloPubblico)],
-    ].map((riga) => riga.map((voce) => testoPdf(voce))),
-    columnStyles: { 0: { cellWidth: 72, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+    head: [
+      [
+        { content: 'Classifica', styles: { halign: 'left' } },
+        { content: 'Pos.', styles: { halign: 'center' } },
+        { content: 'Giocatore', styles: { halign: 'left' } },
+        { content: 'Valore', styles: { halign: 'center' } },
+      ],
+    ],
+    body: corpoRiconoscimenti,
+    columnStyles: {
+      0: { cellWidth: 58, valign: 'top' },
+      1: { cellWidth: 12, halign: 'center' },
+      2: { cellWidth: 'auto', halign: 'left' },
+      3: { cellWidth: 38, halign: 'center' },
+    },
+    // Linea più marcata all'inizio di ogni classifica, per separare le sezioni.
+    didDrawCell: (data) => {
+      if (data.section !== 'body' || !data.cell.raw?.isCategoria) return;
+      doc.setDrawColor(...COL_SEZIONE_RGB);
+      doc.setLineWidth(0.6);
+      doc.line(margine, data.cell.y, larghezzaPagina - margine, data.cell.y);
+    },
     rowPageBreak: 'avoid',
   });
 

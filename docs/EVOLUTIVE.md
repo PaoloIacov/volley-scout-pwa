@@ -107,12 +107,17 @@ implementate.**
 - [x] **Pagine separate per tipo di informazione** — la prima pagina del PDF
   contiene i dati anagrafici della partita e il dettaglio dei set (punteggio,
   errori generici e punti da errori avversari); una pagina dedicata raccoglie
-  tutti i riconoscimenti, così le sei classifiche restano visibili insieme;
+  tutti i riconoscimenti con una riga per giocatore (classifica, posizione,
+  nome e valore), così le classifiche restano ordinate e visibili insieme;
   le pagine successive contengono il riepilogo completo dei giocatori (intera
   partita e singoli set), ognuno sempre interamente su una pagina.
 - [x] **Foglio dedicato ai riconoscimenti** — nell'Excel i "Migliori" hanno un
-  foglio separato da quello della partita, con classifica e giocatori su due
-  colonne, così tutte le informazioni si leggono insieme.
+  foglio separato da quello della partita, con le colonne Classifica, Pos.,
+  Giocatore e Valore: ogni giocatore occupa la propria riga e la classifica
+  si legge dall'alto verso il basso.
+- [x] **Bordi marcati** — nella pagina dei riconoscimenti la griglia è più
+  scura e una linea spessa separa l'inizio di ogni classifica, sia nel PDF sia
+  nell'Excel, così le sezioni si distinguono a colpo d'occhio.
 
 ## Migliori e riconoscimenti
 
