@@ -13,11 +13,47 @@ function voce(valore, dettaglio) {
   );
 }
 
+const SEZIONI = [
+  { chiave: 'topPunti', titolo: 'Top 3 punti fatti', dettaglio: (persona) => `${persona.punti} pt` },
+  {
+    chiave: 'topEfficienzaRicezione',
+    titolo: 'Top 3 efficienza in ricezione',
+    dettaglio: (persona) => `${persona.efficienza}%`,
+  },
+  {
+    chiave: 'topEfficienzaAttacco',
+    titolo: 'Top 3 efficienza in attacco',
+    dettaglio: (persona) => `${persona.efficienza}%`,
+  },
+  {
+    chiave: 'topEfficienzaBattuta',
+    titolo: 'Top 3 efficienza in battuta',
+    dettaglio: (persona) => `${persona.efficienza}%`,
+  },
+  { chiave: 'topAceMan', titolo: 'Top 3 Ace-man', dettaglio: (persona) => `${persona.ace} ace` },
+  {
+    chiave: 'topPericoloPubblico',
+    titolo: 'Top 3 Pericolo pubblico',
+    dettaglio: (persona) => `${persona.errori} errori`,
+  },
+];
+
 export default function Riconoscimenti({
   riconoscimenti,
   titolo = 'Migliori della partita',
   sottotitolo = 'Classifiche basate sulle azioni registrate nella partita.',
 }) {
+  const sezioni = Array.isArray(riconoscimenti.migliorPanchinaro)
+    ? [
+        ...SEZIONI,
+        {
+          chiave: 'migliorPanchinaro',
+          titolo: 'Miglior panchinaro',
+          dettaglio: (persona) => `${persona.partite} partite`,
+        },
+      ]
+    : SEZIONI;
+
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b border-line bg-panel-2 px-3 py-2">
@@ -25,62 +61,14 @@ export default function Riconoscimenti({
         <p className="text-xs text-ink-mute">{sottotitolo}</p>
       </div>
       <div className="grid gap-4 p-4 md:grid-cols-2">
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Top 3 punti in attacco
-          </h3>
-          {riconoscimenti.topAttacco.length > 0
-            ? riconoscimenti.topAttacco.map((valore, indice) => (
-                <div
-                  key={valore.numero}
-                  className="flex items-center justify-between gap-3 border-t border-line py-2"
-                >
-                  <span className="truncate text-sm font-medium text-ink">
-                    {indice + 1}. {valore.nome}
-                  </span>
-                  <span className="shrink-0 text-sm font-bold tabular-nums text-accent-text">
-                    {valore.punti} pt
-                  </span>
-                </div>
-              ))
-            : <div className="border-t border-line py-2 text-sm text-ink-mute">N/D</div>}
-        </section>
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Miglior ricevitore
-          </h3>
-          {voce(riconoscimenti.migliorRicevitore, (persona) => `${persona.efficienza}%`)}
-        </section>
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Miglior efficienza in attacco
-          </h3>
-          {voce(riconoscimenti.migliorAttaccante, (persona) => `${persona.efficienza}%`)}
-        </section>
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Miglior battitore
-          </h3>
-          {voce(riconoscimenti.migliorBattitore, (persona) => `${persona.efficienza}%`)}
-        </section>
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Ace-man
-          </h3>
-          {voce(riconoscimenti.aceMan, (persona) => `${persona.ace} ace`)}
-        </section>
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Miglior panchinaro
-          </h3>
-          {voce(riconoscimenti.migliorPanchinaro, (persona) => `${persona.partite} partite`)}
-        </section>
-        <section>
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            Pericolo pubblico
-          </h3>
-          {voce(riconoscimenti.pericoloPubblico, (persona) => `${persona.errori} errori`)}
-        </section>
+        {sezioni.map((sezione) => (
+          <section key={sezione.chiave}>
+            <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-mute">
+              {sezione.titolo}
+            </h3>
+            {voce(riconoscimenti[sezione.chiave], sezione.dettaglio)}
+          </section>
+        ))}
       </div>
     </Card>
   );

@@ -104,10 +104,33 @@ implementate.**
 - [x] **Raggruppamento per ruolo** — nei riepiloghi i giocatori sono raggruppati
   per ruolo (palleggiatore, opposto, schiacciatore, centrale, libero) e ordinati
   per numero di maglia dentro ogni gruppo.
-- [x] **PDF in due pagine** — la prima pagina contiene i dati anagrafici della
-  partita e il dettaglio dei set (punteggio, errori generici e punti da errori
-  avversari); la seconda contiene la tabella completa dei giocatori, sempre
-  interamente su una pagina.
+- [x] **Pagine separate per tipo di informazione** — la prima pagina del PDF
+  contiene i dati anagrafici della partita e il dettaglio dei set (punteggio,
+  errori generici e punti da errori avversari); una pagina dedicata raccoglie
+  tutti i riconoscimenti, così le sei classifiche restano visibili insieme;
+  le pagine successive contengono il riepilogo completo dei giocatori (intera
+  partita e singoli set), ognuno sempre interamente su una pagina.
+- [x] **Foglio dedicato ai riconoscimenti** — nell'Excel i "Migliori" hanno un
+  foglio separato da quello della partita, con classifica e giocatori su due
+  colonne, così tutte le informazioni si leggono insieme.
+
+## Migliori e riconoscimenti
+
+- [x] **Top 3 punti fatti** — la classifica non conta più solo i punti in
+  attacco: somma i `#` di attacco, muro e battuta, con l'unica esclusione
+  della ricezione perfetta.
+- [x] **Top 3 efficienze** — le precedenti "miglior ricevitore", "miglior
+  efficienza in attacco" e "miglior battitore" diventano rispettivamente
+  top 3 efficienza in ricezione, top 3 efficienza in attacco e top 3
+  efficienza in battuta.
+- [x] **Top 3 Ace-man e Pericolo pubblico** — anche le classifiche degli ace
+  e degli errori mostrano i primi tre giocatori invece del solo vincitore.
+- [x] **Pari merito** — al terzo posto vengono inclusi anche gli eventuali
+  giocatori a pari merito, così la classifica non taglia arbitrariamente
+  chi ha lo stesso valore.
+- [x] **Partita, squadra ed export** — le sei classifiche valgono sia per la
+  singola partita (tab Migliori) sia per i dati cumulativi della rosa, e
+  compaiono con le stesse voci nel PDF e nell'Excel.
 
 ## Profili giocatori e storico complessivo
 
@@ -128,3 +151,4 @@ implementate.**
   profilo resta collegato anche modificando l'anagrafica. Le rose esistenti
   senza id vengono migrate automaticamente al primo accesso; l'import dei
   backup assegna gli id mancanti.
+

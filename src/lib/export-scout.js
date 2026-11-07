@@ -468,49 +468,36 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
   const nomiRiconoscimento = (valori, dettaglio) =>
     valori.length > 0 ? valori.map((valore) => `${valore.nome} (${dettaglio(valore)})`).join(', ') : 'N/D';
   const righeRiconoscimenti = () => {
-    const top = dati.riconoscimenti.topAttacco;
+    const riconoscimenti = dati.riconoscimenti;
     const righe = [
-      ['Top 1 punti in attacco', top[0] ? `${top[0].nome} (${top[0].punti})` : 'N/D'],
-      ['Top 2 punti in attacco', top[1] ? `${top[1].nome} (${top[1].punti})` : 'N/D'],
       [
-        'Top 3 punti in attacco',
-        top.length > 2
-          ? top
-              .slice(2)
-              .map((valore) => `${valore.nome} (${valore.punti})`)
-              .join(', ')
-          : 'N/D',
+        'Top 3 punti fatti',
+        nomiRiconoscimento(riconoscimenti.topPunti, (valore) => `${valore.punti} pt`),
       ],
       [
-        'Miglior ricevitore',
-        nomiRiconoscimento(dati.riconoscimenti.migliorRicevitore, (valore) => `${valore.efficienza}%`),
+        'Top 3 efficienza in ricezione',
+        nomiRiconoscimento(riconoscimenti.topEfficienzaRicezione, (valore) => `${valore.efficienza}%`),
       ],
       [
-        'Miglior efficienza in attacco',
-        nomiRiconoscimento(dati.riconoscimenti.migliorAttaccante, (valore) => `${valore.efficienza}%`),
+        'Top 3 efficienza in attacco',
+        nomiRiconoscimento(riconoscimenti.topEfficienzaAttacco, (valore) => `${valore.efficienza}%`),
       ],
       [
-        'Miglior battitore',
-        nomiRiconoscimento(dati.riconoscimenti.migliorBattitore, (valore) => `${valore.efficienza}%`),
+        'Top 3 efficienza in battuta',
+        nomiRiconoscimento(riconoscimenti.topEfficienzaBattuta, (valore) => `${valore.efficienza}%`),
       ],
       [
-        'Ace-man',
-        nomiRiconoscimento(dati.riconoscimenti.aceMan, (valore) => `${valore.ace} ace`),
+        'Top 3 Ace-man',
+        nomiRiconoscimento(riconoscimenti.topAceMan, (valore) => `${valore.ace} ace`),
       ],
       [
-        'Pericolo pubblico',
-        nomiRiconoscimento(dati.riconoscimenti.pericoloPubblico, (valore) => `${valore.errori} errori`),
+        'Top 3 Pericolo pubblico',
+        nomiRiconoscimento(riconoscimenti.topPericoloPubblico, (valore) => `${valore.errori} errori`),
       ],
     ];
     return righe.map(([label, value]) => [
-      cella(label, { ...stile.etichetta, columnSpan: 3 }),
-      null,
-      null,
-      cella(value, { ...stile.valoreInfo, columnSpan: 4 }),
-      null,
-      null,
-      null,
-      ...Array.from({ length: COLONNE_NUMERICHE - 5 }, () => null),
+      cella(label, { ...stile.etichetta, align: 'left' }),
+      cella(value, { ...stile.valoreInfo, align: 'left', wrap: true }),
     ]);
   };
 
@@ -601,8 +588,27 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
     rigaPunteggio(dati.punteggio.header, stile.intestazione),
     ...dati.punteggio.righe.map((riga) => rigaPunteggio(riga)),
     rigaPunteggio(dati.punteggio.totale, stile.totale),
+  ];
+  const righeMigliori = [
+    [
+      cella('Migliori della partita', {
+        ...stile.titolo,
+        columnSpan: 2,
+      }),
+      null,
+    ],
+    [
+      cella('Classifiche basate sulle azioni registrate nella partita.', {
+        textColor: COL_MUTE,
+        columnSpan: 2,
+      }),
+      null,
+    ],
     [],
-    rigaSezione('Migliori della partita'),
+    [
+      cella('Classifica', { ...stile.intestazione, align: 'left' }),
+      cella('Giocatori', { ...stile.intestazione, align: 'left' }),
+    ],
     ...righeRiconoscimenti(),
   ];
   const opzioniFoglio = (nome) => ({
@@ -615,8 +621,15 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome) {
       ...Array.from({ length: COLONNE_NUMERICHE }, () => ({ width: 7.5 })),
     ],
   });
+  const opzioniFoglioMigliori = {
+    sheet: 'Migliori',
+    orientation: 'landscape',
+    showGridLines: false,
+    columns: [{ width: 42 }, { width: 90 }],
+  };
   const fogli = [
     { data: righePartita, ...opzioniFoglio('Partita') },
+    { data: righeMigliori, ...opzioniFoglioMigliori },
     { data: creaRigheRiepilogo(dati), ...opzioniFoglio('Totale giocatori') },
     ...scout.sets.map((set) => {
       const datiSet = costruisciExport(scout, giocatori, squadraNome, set.n);
@@ -728,22 +741,46 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome) {
       })
       .join(', ');
   };
-  const topAttaccoPdf = dati.riconoscimenti.topAttacco;
+
+  // Pagina 2: tutti i riconoscimenti su una pagina dedicata, così le sei
+  // classifiche restano visibili insieme senza spezzarsi.
+  doc.addPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...COL_TESTO_RGB);
+  doc.text(testoPdf('Migliori della partita'), margine, 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...COL_MUTE_RGB);
+  doc.text(
+    testoPdf(
+      [dati.titolo, toItalianDate(scout.data), squadraNome].filter(Boolean).join('  ·  '),
+    ),
+    margine,
+    20.5,
+  );
+
+  const topPdf = dati.riconoscimenti;
   autoTable(doc, {
     ...stileTabella,
-    startY: doc.lastAutoTable.finalY + 6,
-    head: [['Migliori della partita', 'Valore']],
+    startY: 26,
+    styles: {
+      ...stileTabella.styles,
+      fontSize: 10,
+      cellPadding: 3.5,
+      overflow: 'linebreak',
+    },
+    head: [['Classifica', 'Giocatori']],
     body: [
-      ['Top 1 punti in attacco', formatRiconoscimento(topAttaccoPdf.slice(0, 1))],
-      ['Top 2 punti in attacco', formatRiconoscimento(topAttaccoPdf.slice(1, 2))],
-      ['Top 3 punti in attacco', formatRiconoscimento(topAttaccoPdf.slice(2))],
-      ['Miglior ricevitore', formatRiconoscimento(dati.riconoscimenti.migliorRicevitore)],
-      ['Miglior efficienza in attacco', formatRiconoscimento(dati.riconoscimenti.migliorAttaccante)],
-      ['Miglior battitore', formatRiconoscimento(dati.riconoscimenti.migliorBattitore)],
-      ['Ace-man', formatRiconoscimento(dati.riconoscimenti.aceMan)],
-      ['Pericolo pubblico', formatRiconoscimento(dati.riconoscimenti.pericoloPubblico)],
+      ['Top 3 punti fatti', formatRiconoscimento(topPdf.topPunti)],
+      ['Top 3 efficienza in ricezione', formatRiconoscimento(topPdf.topEfficienzaRicezione)],
+      ['Top 3 efficienza in attacco', formatRiconoscimento(topPdf.topEfficienzaAttacco)],
+      ['Top 3 efficienza in battuta', formatRiconoscimento(topPdf.topEfficienzaBattuta)],
+      ['Top 3 Ace-man', formatRiconoscimento(topPdf.topAceMan)],
+      ['Top 3 Pericolo pubblico', formatRiconoscimento(topPdf.topPericoloPubblico)],
     ].map((riga) => riga.map((voce) => testoPdf(voce))),
-    columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 90 } },
+    columnStyles: { 0: { cellWidth: 72, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+    rowPageBreak: 'avoid',
   });
 
   /**

@@ -415,6 +415,20 @@ function nomeGiocatore(giocatore, numero) {
 }
 
 /**
+ * Prime tre voci di una classifica, includendo anche gli eventuali pari merito
+ * con il terzo classificato (che altrimenti resterebbero fuori).
+ *
+ * @param {Array} voci classifica già ordinata
+ * @param {(voce:object) => number} valore valore usato per confrontare i pari merito
+ */
+function primiTre(voci, valore) {
+  const prime = voci.slice(0, 3);
+  if (prime.length < 3) return prime;
+  const soglia = valore(prime[2]);
+  return [...prime, ...voci.slice(3).filter((voce) => valore(voce) === soglia)];
+}
+
+/**
  * Riconoscimenti della partita: classifiche e migliori efficienze calcolate
  * sulle azioni dello scout (o sul singolo set, se indicato).
  */
@@ -449,8 +463,8 @@ export function riconoscimentiPartita(scout, giocatori = [], setN = null) {
     giocatore: giocatorePerNumero.get(numero),
     celle,
   }));
-  const perEfficienza = (azione, filtro) =>
-    voci
+  const perEfficienza = (azione, filtro) => {
+    const classifica = voci
       .filter((voce) => (!filtro || filtro(voce.giocatore)) && voce.celle[azione].tot > 0)
       .map((voce) => ({
         numero: voce.numero,
@@ -459,69 +473,65 @@ export function riconoscimentiPartita(scout, giocatori = [], setN = null) {
         palloni: voce.celle[azione].tot,
       }))
       .sort((a, b) => b.efficienza - a.efficienza || b.palloni - a.palloni || a.numero - b.numero);
+    return primiTre(classifica, (voce) => voce.efficienza);
+  };
 
-  const topAttacco = voci
-    .map((voce) => ({
-      numero: voce.numero,
-      nome: voce.nome,
-      punti: voce.celle.attacco['#'],
-    }))
-    .filter((voce) => voce.punti > 0)
-    .sort((a, b) => b.punti - a.punti || a.numero - b.numero)
-    .slice(0, 3);
-  if (topAttacco.length === 3) {
-    const puntiMinimi = topAttacco[2].punti;
-    topAttacco.push(
-      ...voci
-        .map((voce) => ({ numero: voce.numero, nome: voce.nome, punti: voce.celle.attacco['#'] }))
-        .filter((voce) => voce.punti === puntiMinimi && !topAttacco.some((top) => top.numero === voce.numero)),
-    );
-  }
-  const migliorRicevitore = perEfficienza(
+  // Punti fatti: i `#` di attacco, muro e battuta. La ricezione perfetta resta
+  // esclusa, come nella sintesi dei totali.
+  const puntiFatti = (voce) =>
+    voce.celle.attacco['#'] + voce.celle.muro['#'] + voce.celle.battuta['#'];
+  const topPunti = primiTre(
+    voci
+      .map((voce) => ({
+        numero: voce.numero,
+        nome: voce.nome,
+        punti: puntiFatti(voce),
+      }))
+      .filter((voce) => voce.punti > 0)
+      .sort((a, b) => b.punti - a.punti || a.numero - b.numero),
+    (voce) => voce.punti,
+  );
+  const topEfficienzaRicezione = perEfficienza(
     'ricezione',
     (giocatore) => isLibero(giocatore) || String(giocatore?.ruolo ?? '').trim().toLowerCase() === 'schiacciatore',
   );
-  const migliorAttaccante = perEfficienza(
+  const topEfficienzaAttacco = perEfficienza(
     'attacco',
     (giocatore) =>
       String(giocatore?.ruolo ?? '').trim().toLowerCase() !== 'palleggiatore' &&
       !isLibero(giocatore),
   );
-  const migliorBattitore = perEfficienza('battuta');
-  const aceMan = voci
-    .map((voce) => ({
-      numero: voce.numero,
-      nome: voce.nome,
-      ace: voce.celle.battuta['#'],
-    }))
-    .filter((voce) => voce.ace > 0)
-    .sort((a, b) => b.ace - a.ace || a.numero - b.numero);
-  const aceMassimo = aceMan[0]?.ace ?? 0;
-  const aceVincitori = aceMan.filter((voce) => voce.ace === aceMassimo);
-  const pericoloPubblico = voci
-    .map((voce) => ({
-      numero: voce.numero,
-      nome: voce.nome,
-      errori: AZIONI.reduce((totale, { id }) => totale + voce.celle[id]['='], 0),
-    }))
-    .filter((voce) => voce.errori > 0)
-    .sort((a, b) => b.errori - a.errori || a.numero - b.numero);
-  const erroriMassimi = pericoloPubblico[0]?.errori ?? 0;
-  const pericoloVincitori = pericoloPubblico.filter((voce) => voce.errori === erroriMassimi);
+  const topEfficienzaBattuta = perEfficienza('battuta');
+  const topAceMan = primiTre(
+    voci
+      .map((voce) => ({
+        numero: voce.numero,
+        nome: voce.nome,
+        ace: voce.celle.battuta['#'],
+      }))
+      .filter((voce) => voce.ace > 0)
+      .sort((a, b) => b.ace - a.ace || a.numero - b.numero),
+    (voce) => voce.ace,
+  );
+  const topPericoloPubblico = primiTre(
+    voci
+      .map((voce) => ({
+        numero: voce.numero,
+        nome: voce.nome,
+        errori: AZIONI.reduce((totale, { id }) => totale + voce.celle[id]['='], 0),
+      }))
+      .filter((voce) => voce.errori > 0)
+      .sort((a, b) => b.errori - a.errori || a.numero - b.numero),
+    (voce) => voce.errori,
+  );
 
   return {
-    topAttacco,
-    migliorRicevitore: migliorRicevitore.length
-      ? migliorRicevitore.filter((voce) => voce.efficienza === migliorRicevitore[0].efficienza)
-      : [],
-    migliorAttaccante: migliorAttaccante.length
-      ? migliorAttaccante.filter((voce) => voce.efficienza === migliorAttaccante[0].efficienza)
-      : [],
-    migliorBattitore: migliorBattitore.length
-      ? migliorBattitore.filter((voce) => voce.efficienza === migliorBattitore[0].efficienza)
-      : [],
-    aceMan: aceVincitori,
-    pericoloPubblico: pericoloVincitori,
+    topPunti,
+    topEfficienzaRicezione,
+    topEfficienzaAttacco,
+    topEfficienzaBattuta,
+    topAceMan,
+    topPericoloPubblico,
   };
 }
 
