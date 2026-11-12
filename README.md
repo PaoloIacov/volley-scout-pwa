@@ -73,8 +73,11 @@ e design system a token condivisi.
 - **Export scout**: dalle tab Riepilogo e Totali si esporta il riepilogo
   sintetico (info partita e tipo di gara, punteggi dei set, tabella per
   giocatore con sotto-colonne di esito colorate, Tot compreso, errori generici
-  e punti da errori avversari) in Excel (.xlsx) o PDF: le librerie di export
-  vengono caricate solo al momento del download
+  e punti da errori avversari) in Excel (.xlsx) o PDF. L'export include anche
+  le statistiche cumulative di tutti gli scout della squadra (escluse le
+  rilevazioni sull'avversaria), con i riconoscimenti cumulativi e il Top 3
+  panchinaro. Le librerie di export vengono caricate solo al momento del
+  download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
   (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)

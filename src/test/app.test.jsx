@@ -2,7 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App.jsx';
-import { costruisciExport, nomeFileScout, testoPdf } from '../lib/export-scout.js';
+import {
+  costruisciExport,
+  costruisciExportCumulativo,
+  nomeFileScout,
+  testoPdf,
+} from '../lib/export-scout.js';
+import {
+  costruisciRiepilogoCumulativo,
+  riconoscimentiSquadra,
+} from '../lib/scout-stats.js';
 import { SettingsProvider } from '../components/SettingsContext.jsx';
 import { ToastProvider } from '../components/Toast.jsx';
 import { migraDati } from '../services/squadre.js';
@@ -1634,6 +1643,71 @@ describe('export scout', () => {
       0,
       1, // Tot
     ]);
+  });
+
+  it('somma tutti gli scout della squadra nelle statistiche cumulative', () => {
+    const scout2 = {
+      ...SCOUT,
+      id: 'sc2',
+      data: '2026-12-08',
+      avversario: 'Altra Squadra',
+      azioni: [
+        { id: 'a4', ts: 7, set: 1, numero: 10, azione: 'battuta', esito: '#' },
+        { id: 'a5', ts: 8, set: 1, numero: 10, azione: 'ricezione', esito: '=' },
+        { id: 'a6', ts: 9, set: 1, numero: 7, azione: 'attacco', esito: '+' },
+      ],
+      generici: [],
+      erroriAvversari: [],
+    };
+
+    const { righe, totali } = costruisciRiepilogoCumulativo([SCOUT, scout2], ROSA);
+    const riga10 = righe.find((riga) => riga.numero === 10);
+    expect(riga10.celle.attacco).toMatchObject({ tot: 2, '#': 1, '=': 1 });
+    expect(riga10.celle.battuta).toMatchObject({ tot: 1, '#': 1 });
+    expect(riga10.celle.ricezione).toMatchObject({ tot: 1, '=': 1 });
+    expect(totali.attacco.tot).toBe(4);
+
+    const dati = costruisciExportCumulativo([SCOUT, scout2], ROSA, 'Prima Divisione');
+    expect(dati.titolo).toBe('Statistiche cumulative');
+    expect(dati.info).toContainEqual(['Squadra', 'Prima Divisione']);
+    expect(dati.info).toContainEqual(['Scout analizzati', 2]);
+    expect(dati.info).toContainEqual(['Azioni rilevate', 6]);
+    expect(dati.info).toContainEqual(['Punti fatti', 2]);
+    expect(dati.info).toContainEqual(['Errori fatti', 2]);
+    expect(dati.info).toContainEqual(['Palloni attaccati', 4]);
+    expect(dati.riconoscimenti.topPunti[0]).toMatchObject({ numero: 10, punti: 2 });
+    expect(dati.riepilogo.totale[1]).toBe('Totale');
+  });
+
+  it('calcola il Top 3 panchinaro con i primi tre della classifica cumulativa', () => {
+    const rosa = [1, 2, 3, 4].map((numero) => ({
+      nome: `Giocatore${numero}`,
+      cognome: 'Test',
+      numeroMaglia: numero,
+      ruolo: 'centrale',
+    }));
+    const scout = (id, inCampo) => ({
+      id,
+      squadraOsservata: 'propria',
+      convocati: [1, 2, 3, 4],
+      azioni: inCampo.map((numero, indice) => ({
+        id: `${id}-${indice}`,
+        ts: indice,
+        set: 1,
+        numero,
+        azione: 'attacco',
+        esito: '+',
+      })),
+    });
+
+    // Il 4 resta in panchina in tutte e tre le partite, il 3 in due, il 2 in una.
+    const riconoscimenti = riconoscimentiSquadra(
+      [scout('s1', [1]), scout('s2', [1, 2]), scout('s3', [1, 2, 3])],
+      rosa,
+    );
+    expect(riconoscimenti.topPanchinaro.map((voce) => voce.numero)).toEqual([4, 3, 2]);
+    expect(riconoscimenti.topPanchinaro.map((voce) => voce.partite)).toEqual([3, 2, 1]);
+    expect(riconoscimenti).not.toHaveProperty('migliorPanchinaro');
   });
 
   it('prepara nomi file sicuri e testo PDF compatibile', () => {

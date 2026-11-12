@@ -43,13 +43,14 @@ export default function Riconoscimenti({
   titolo = 'Migliori della partita',
   sottotitolo = 'Classifiche basate sulle azioni registrate nella partita.',
 }) {
-  const sezioni = Array.isArray(riconoscimenti.migliorPanchinaro)
+  const sezioni = Array.isArray(riconoscimenti.topPanchinaro)
     ? [
         ...SEZIONI,
         {
-          chiave: 'migliorPanchinaro',
-          titolo: 'Miglior panchinaro',
-          dettaglio: (persona) => `${persona.partite} partite`,
+          chiave: 'topPanchinaro',
+          titolo: 'Top 3 panchinaro',
+          dettaglio: (persona) =>
+            `${persona.partite} ${persona.partite === 1 ? 'partita' : 'partite'}`,
         },
       ]
     : SEZIONI;

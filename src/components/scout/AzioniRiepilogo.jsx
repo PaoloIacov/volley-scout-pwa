@@ -3,6 +3,7 @@ import { FileDown, FileSpreadsheet, Undo2 } from 'lucide-react';
 import { useToast } from '../Toast.jsx';
 import { Button } from '../ui.jsx';
 import { esportaScoutExcel, esportaScoutPdf } from '../../lib/export-scout.js';
+import { getScoutList } from '../../services/scout.js';
 
 /**
  * Azioni contestuali della tab Riepilogo: annulla l'ultimo dato inserito ed
@@ -23,11 +24,14 @@ export default function AzioniRiepilogo({
   const esporta = async (formato) => {
     setEsportando(formato);
     try {
+      // Le statistiche cumulative sommano tutti gli scout della squadra,
+      // escludendo le rilevazioni sull'avversaria.
+      const scouts = getScoutList(scout.squadraId);
       if (formato === 'excel') {
-        await esportaScoutExcel(scout, giocatori, squadraNome);
+        await esportaScoutExcel(scout, giocatori, squadraNome, scouts);
         toast.show('Riepilogo esportato in Excel.');
       } else {
-        await esportaScoutPdf(scout, giocatori, squadraNome);
+        await esportaScoutPdf(scout, giocatori, squadraNome, scouts);
         toast.show('Riepilogo esportato in PDF.');
       }
     } catch (errore) {

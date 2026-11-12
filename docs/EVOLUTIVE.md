@@ -157,3 +157,14 @@ implementate.**
   senza id vengono migrate automaticamente al primo accesso; l'import dei
   backup assegna gli id mancanti.
 
+## Statistiche cumulative negli export
+
+- [x] **Foglio e pagine cumulative** — oltre ai dati della singola partita,
+  PDF ed Excel includono le statistiche cumulative di tutti gli scout della
+  squadra (escluse le rilevazioni sull'avversaria): riepilogo per giocatore con
+  la stessa suddivisione per azione ed esito e le sintesi Punti fatti / Errori
+  fatti / Palloni attaccati. Nell'Excel sono due fogli dedicati ("Statistiche
+  cumulative" e "Migliori cumulativi"), nel PDF due pagine finali.
+- [x] **Top 3 panchinaro** — nelle statistiche cumulative il "Miglior
+  panchinaro" diventa "Top 3 panchinaro" e mostra i primi tre giocatori, con
+  gli eventuali pari merito al terzo posto, sia nell'app sia negli export.

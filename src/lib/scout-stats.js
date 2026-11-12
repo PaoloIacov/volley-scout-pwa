@@ -401,6 +401,24 @@ export function costruisciRiepilogo(scout, giocatori, setN = null) {
   return { righe, totali, totaliPerEsito };
 }
 
+/**
+ * Riepilogo cumulativo di tutti gli scout della squadra: somma le azioni di
+ * ogni partita in cui si osserva la squadra propria (le rilevazioni
+ * sull'avversaria non sono attribuibili ai nostri giocatori) e restituisce la
+ * stessa struttura di `costruisciRiepilogo`, con una riga per ogni giocatore
+ * della rosa.
+ *
+ * @param {Array} scouts scout della squadra
+ * @param {Array} giocatori rosa della squadra
+ * @returns {{ righe: Array, totali: object, totaliPerEsito: object }}
+ */
+export function costruisciRiepilogoCumulativo(scouts, giocatori = []) {
+  const azioni = (Array.isArray(scouts) ? scouts : [])
+    .filter((scout) => scout && scout.squadraOsservata !== 'avversaria')
+    .flatMap((scout) => (Array.isArray(scout.azioni) ? scout.azioni : []));
+  return costruisciRiepilogo({ azioni, squadraOsservata: 'propria' }, giocatori);
+}
+
 function efficienza(cella) {
   if (!cella?.tot) return null;
   return Math.round(
@@ -559,7 +577,7 @@ export function riconoscimentiSquadra(scouts, giocatori = []) {
       if (panchine.has(n) && !rilevati.has(n)) panchine.set(n, panchine.get(n) + 1);
     });
   });
-  const migliorPanchinaro = [...panchine.entries()]
+  const panchinari = [...panchine.entries()]
     .map(([numero, partite]) => ({
       numero,
       nome: nomeGiocatore(
@@ -572,9 +590,9 @@ export function riconoscimentiSquadra(scouts, giocatori = []) {
     }))
     .filter((voce) => voce.partite > 0)
     .sort((a, b) => b.partite - a.partite || a.numero - b.numero);
-  const panchineMassime = migliorPanchinaro[0]?.partite ?? 0;
   return {
     ...riconoscimenti,
-    migliorPanchinaro: migliorPanchinaro.filter((voce) => voce.partite === panchineMassime),
+    // Come le altre classifiche, mostra i primi tre (con eventuali pari merito).
+    topPanchinaro: primiTre(panchinari, (voce) => voce.partite),
   };
 }
