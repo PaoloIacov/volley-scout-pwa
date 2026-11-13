@@ -2,6 +2,8 @@ import { useState } from 'react';
 import {
   Database,
   Download,
+  Cloud,
+  RefreshCw,
   Monitor,
   Moon,
   Palette,
@@ -32,7 +34,12 @@ import {
   setSquadre,
 } from '../services/squadre.js';
 import { TEMA_LABELS } from '../services/impostazioni.js';
-import { downloadJSON, openJSONFile } from '../lib/json-io.js';
+import { downloadJSON, openJSONFile, timestampJSON } from '../lib/json-io.js';
+import {
+  downloadLatestJSONFromDrive,
+  googleDriveConfigurato,
+  uploadJSONToDrive,
+} from '../services/google-drive.js';
 
 const TEMA_OPTIONS = [
   { value: 'scuro', label: TEMA_LABELS.scuro, icon: Moon },
@@ -46,22 +53,57 @@ export default function Impostazioni() {
 
   const [pendingBackup, setPendingBackup] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [driveBusy, setDriveBusy] = useState('');
+
+  const buildBackup = () => ({
+    version: 3,
+    esportatoIl: new Date().toISOString(),
+    squadre: getSquadre(),
+    squadraAttiva: getSquadraAttiva()?.id ?? null,
+    giocatori: getTuttiGiocatori(),
+    partite: getTuttePartite(),
+    scout: getTuttiScout(),
+    impostazioni: settings,
+  });
 
   const handleExport = () => {
-    downloadJSON(
-      {
-        version: 3,
-        esportatoIl: new Date().toISOString(),
-        squadre: getSquadre(),
-        squadraAttiva: getSquadraAttiva()?.id ?? null,
-        giocatori: getTuttiGiocatori(),
-        partite: getTuttePartite(),
-        scout: getTuttiScout(),
-        impostazioni: settings,
-      },
-      `backup_volley_scout_${new Date().toISOString().split('T')[0]}.json`,
-    );
+    downloadJSON(buildBackup(), timestampJSON('backup_volley_scout'));
     toast.show('Backup completo esportato in JSON.');
+  };
+
+  const handleDriveExport = async () => {
+    setDriveBusy('export');
+    try {
+      await uploadJSONToDrive(buildBackup(), timestampJSON('backup_volley_scout'));
+      toast.show('Backup esportato su Google Drive.');
+    } catch (error) {
+      console.error('Esportazione Google Drive fallita', error);
+      toast.show(error.message || 'Esportazione su Google Drive non riuscita.', 'error');
+    } finally {
+      setDriveBusy('');
+    }
+  };
+
+  const handleDriveRefresh = async () => {
+    setDriveBusy('refresh');
+    try {
+      const { data, filename } = await downloadLatestJSONFromDrive();
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        Array.isArray(data) ||
+        !['squadre', 'giocatori', 'partite', 'scout', 'impostazioni'].some((key) => key in data)
+      ) {
+        throw new Error('Il backup più recente non è riconoscibile.');
+      }
+      setPendingBackup(data);
+      toast.show(`Trovato il backup più recente: ${filename}.`);
+    } catch (error) {
+      console.error('Aggiornamento Google Drive fallito', error);
+      toast.show(error.message || 'Aggiornamento da Google Drive non riuscito.', 'error');
+    } finally {
+      setDriveBusy('');
+    }
   };
 
   const handleImportClick = async () => {
@@ -200,6 +242,24 @@ export default function Impostazioni() {
             <Download size={16} />
             Esporta tutto
           </Button>
+          <Button
+            variant="outline"
+            onClick={handleDriveExport}
+            disabled={!googleDriveConfigurato() || driveBusy !== ''}
+            title={!googleDriveConfigurato() ? 'Configura VITE_GOOGLE_CLIENT_ID' : undefined}
+          >
+            <Cloud size={16} />
+            {driveBusy === 'export' ? 'Esporto…' : 'Esporta su Drive'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDriveRefresh}
+            disabled={!googleDriveConfigurato() || driveBusy !== ''}
+            title={!googleDriveConfigurato() ? 'Configura VITE_GOOGLE_CLIENT_ID' : undefined}
+          >
+            <RefreshCw size={16} />
+            {driveBusy === 'refresh' ? 'Aggiorno…' : 'Aggiorna dati da Drive'}
+          </Button>
           <Button variant="outline" onClick={handleImportClick}>
             <Upload size={16} />
             Importa backup
@@ -213,6 +273,10 @@ export default function Impostazioni() {
           L'export include le squadre, la rosa, il calendario, gli scout e il tema: conservalo per
           spostare i dati su un altro dispositivo. Nome, foto e stagione delle squadre si modificano
           dalla pagina Squadre.
+        </p>
+        <p className="mt-2 text-xs text-ink-mute">
+          I dati mostrati all’apertura restano quelli salvati sul dispositivo. I pulsanti Drive
+          richiedono l’autenticazione Google e sincronizzano la cartella condivisa configurata.
         </p>
       </Section>
 

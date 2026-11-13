@@ -79,8 +79,29 @@ e design system a token condivisi.
   panchinaro. Le librerie di export vengono caricate solo al momento del
   download
 - **Impostazioni**: tema (scuro/chiaro/sistema), backup completo
-  (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema
+  (squadre + rosa + calendario + scout) in un unico file JSON, ripristino del tema,
+  esportazione su Google Drive e aggiornamento manuale dal backup JSON più recente
 - **PWA**: installabile, utilizzabile offline (i dati restano nel dispositivo)
+
+### Sincronizzazione Google Drive
+
+La sincronizzazione è esplicita: all'apertura l'app mostra sempre i dati del
+localStorage del dispositivo; da **Impostazioni** è possibile aggiornare i dati
+dal JSON più recente nella cartella Drive configurata oppure esportare un nuovo
+backup.
+
+Per abilitare i pulsanti Drive, creare un OAuth 2.0 Client ID di tipo
+**Applicazione web** nella Google Cloud Console, abilitare Google Drive API e
+impostare l'origin dell'app (ad esempio `http://localhost:5173` e il dominio
+GitHub Pages). Quindi configurare la variabile Vite prima del build:
+
+```bash
+VITE_GOOGLE_CLIENT_ID=1234567890-abcdef.apps.googleusercontent.com
+```
+
+Il valore può essere inserito in un file `.env.local` (non committato). Il nome
+dei backup include data e timestamp fino al secondo (`YYYY-MM-DD_HH-mm-ss`) per
+distinguere più export dello stesso giorno.
 
 ## Sviluppo
 

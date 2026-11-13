@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   ChevronRight,
-  Download,
   Hand,
   Plus,
   Shield,
@@ -19,7 +18,7 @@ import { getGiocatori, setGiocatori } from '../services/giocatori.js';
 import { getScoutList } from '../services/scout.js';
 import { getSquadraAttiva } from '../services/squadre.js';
 import { riconoscimentiSquadra } from '../lib/scout-stats.js';
-import { downloadJSON, openJSONFile } from '../lib/json-io.js';
+import { openJSONFile } from '../lib/json-io.js';
 import { useToast } from '../components/Toast.jsx';
 import GiocatoreForm from '../forms/GiocatoreForm.jsx';
 import Riconoscimenti from '../components/scout/Riconoscimenti.jsx';
@@ -75,11 +74,6 @@ export default function Squadra() {
     toast.show(`${giocatore.nome} ${giocatore.cognome} rimosso dalla rosa.`, 'info');
   };
 
-  const handleExport = () => {
-    downloadJSON(giocatori, `giocatori_${new Date().toISOString().split('T')[0]}.json`);
-    toast.show('Rosa esportata in JSON.');
-  };
-
   const handleImportClick = async () => {
     const data = await openJSONFile();
     if (data === null) return;
@@ -131,10 +125,6 @@ export default function Squadra() {
             <Button variant="outline" onClick={handleImportClick}>
               <Upload size={16} />
               Importa
-            </Button>
-            <Button variant="outline" onClick={handleExport} disabled={giocatori.length === 0}>
-              <Download size={16} />
-              Esporta
             </Button>
           </>
         }

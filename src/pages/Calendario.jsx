@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ClipboardList,
   Clock,
-  Download,
   MapPin,
   Pencil,
   Plus,
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import { getPartite, setPartite } from '../services/calendario.js';
 import { getSquadraAttiva } from '../services/squadre.js';
-import { downloadJSON, openJSONFile } from '../lib/json-io.js';
+import { openJSONFile } from '../lib/json-io.js';
 import { dayMonth, parseDate, shortDate, todayISO } from '../lib/dates.js';
 import { useToast } from '../components/Toast.jsx';
 import PartitaForm from '../forms/PartitaForm.jsx';
@@ -62,11 +61,6 @@ export default function Calendario() {
     persist(partite.filter((_, i) => i !== index));
     setToDelete(null);
     toast.show(`Partita contro ${partita.avversario} eliminata.`, 'info');
-  };
-
-  const handleExport = () => {
-    downloadJSON(partite, `calendario_${new Date().toISOString().split('T')[0]}.json`);
-    toast.show('Calendario esportato in JSON.');
   };
 
   const handleImportClick = async () => {
@@ -122,10 +116,6 @@ export default function Calendario() {
             <Button variant="outline" onClick={handleImportClick}>
               <Upload size={16} />
               Importa calendario
-            </Button>
-            <Button variant="outline" onClick={handleExport} disabled={partite.length === 0}>
-              <Download size={16} />
-              Esporta
             </Button>
           </>
         }

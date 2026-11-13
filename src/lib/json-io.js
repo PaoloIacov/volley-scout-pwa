@@ -9,6 +9,12 @@ export function downloadJSON(data, filename) {
   URL.revokeObjectURL(url);
 }
 
+/** Timestamp locale adatto ai nomi file, con precisione al secondo. */
+export function timestampJSON(prefix) {
+  const timestamp = new Date().toISOString().replace('T', '_').replace(/:/g, '-').replace(/\.\d{3}Z$/, '');
+  return `${prefix}_${timestamp}.json`;
+}
+
 /**
  * Apre il selettore file per un JSON e restituisce una Promise con il contenuto parsato.
  * Resolves a `null` se l'utente annulla la selezione.
