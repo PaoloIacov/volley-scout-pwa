@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ClipboardList, UsersRound } from 'lucide-react';
 import { getScout, salvaScout, SET_MASSIMO } from '../services/scout.js';
 import { getGiocatori } from '../services/giocatori.js';
 import { getSquadra } from '../services/squadre.js';
@@ -17,13 +17,14 @@ import {
   liberiConvocati,
   ordinaNumeri,
 } from '../lib/scout-stats.js';
-import { Badge, ConfirmDialog, IconButton, SegmentedControl } from '../components/ui.jsx';
+import { Badge, Button, ConfirmDialog, IconButton, SegmentedControl } from '../components/ui.jsx';
 import BarraPunteggio from '../components/scout/BarraPunteggio.jsx';
 import Inserimento from '../components/scout/Inserimento.jsx';
 import Riepilogo from '../components/scout/Riepilogo.jsx';
 import Totali from '../components/scout/Totali.jsx';
 import AzioniRiepilogo from '../components/scout/AzioniRiepilogo.jsx';
 import FormazioneModal from '../components/scout/FormazioneModal.jsx';
+import ConvocatiModal from '../components/scout/ConvocatiModal.jsx';
 
 function clampPunteggio(value) {
   const parsed = Number.parseInt(value, 10);
@@ -80,9 +81,30 @@ export default function ScoutSessione() {
   const [setDaEliminare, setSetDaEliminare] = useState(null);
   /** Set per cui si stanno scegliendo i titolari (null = modale chiusa). */
   const [setFormazione, setSetFormazione] = useState(() => setDaFormare(scout));
+  const [modificaConvocati, setModificaConvocati] = useState(false);
 
   /** Applica la modifica, la salva subito e aggiorna lo stato. */
   const aggiorna = (next) => setScout(salvaScout(next));
+
+  const salvaConvocati = (numeri) => {
+    const ammessi = new Set(numeri);
+    const limita = (elenco) =>
+      Array.isArray(elenco) && numeri.length > 0
+        ? elenco.filter((numero) => ammessi.has(numero))
+        : elenco;
+    aggiorna({
+      ...scout,
+      convocati: numeri,
+      inCampo: limita(scout.inCampo),
+      formazioni: Array.isArray(scout.formazioni)
+        ? scout.formazioni.map((formazione) => ({
+            ...formazione,
+            numeri: limita(formazione.numeri),
+          }))
+        : scout.formazioni,
+    });
+    setModificaConvocati(false);
+  };
 
   /**
    * Formazione del set: quella scelta esplicitamente (solo i 6 di movimento)
@@ -412,6 +434,12 @@ export default function ScoutSessione() {
         <Badge className="shrink-0 bg-accent/15 text-accent-text ring-1 ring-accent/25">
           {scout.azioni.length} {scout.azioni.length === 1 ? 'azione' : 'azioni'}
         </Badge>
+        {scout.squadraOsservata === 'propria' && (
+          <Button size="sm" variant="outline" onClick={() => setModificaConvocati(true)}>
+            <UsersRound size={15} />
+            Convocati
+          </Button>
+        )}
       </div>
 
       {/* Punteggio e azioni: restano fissi sotto l'header mentre si scorre */}
@@ -478,6 +506,15 @@ export default function ScoutSessione() {
         iniziale={formazioneIniziale}
         onCancel={() => setSetFormazione(null)}
         onConfirm={confermaFormazione}
+      />
+
+      <ConvocatiModal
+        open={modificaConvocati}
+        tipo={scout.tipo}
+        giocatori={giocatori}
+        convocati={scout.convocati}
+        onCancel={() => setModificaConvocati(false)}
+        onConfirm={salvaConvocati}
       />
 
       <ConfirmDialog

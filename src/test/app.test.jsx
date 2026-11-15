@@ -1374,6 +1374,25 @@ describe('scout', () => {
     expect(scout.sets[0]).toMatchObject({ nostro: 0, loro: 0 });
   });
 
+  it('consente di aggiungere convocati anche a scout già iniziato', () => {
+    seedScout({ convocati: [1, 2, 3, 4, 5, 6, 14, 15] });
+    seedRosaGrande();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Convocati' }));
+    const dialog = screen.getByRole('dialog', { name: 'Modifica convocati' });
+    const nuovoConvocato = within(dialog).getByRole('button', {
+      name: 'Convoca Giocatore7 Rossi7',
+    });
+    expect(nuovoConvocato).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(nuovoConvocato);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salva convocati' }));
+
+    expect(JSON.parse(localStorage.getItem('scout'))[0].convocati).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 14, 15,
+    ]);
+  });
+
   it('mostra solo i titolari del set e li sostituisce dalla tabella', () => {
     seedScout();
     seedRosaGrande();
