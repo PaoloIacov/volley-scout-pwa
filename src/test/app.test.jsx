@@ -839,11 +839,11 @@ describe('scout', () => {
       .getAllByRole('row')
       .find((row) => within(row).queryByText('Mario Rossi'));
     expect(riga).toBeDefined();
-    // Ogni azione ha le 4 sotto-colonne di esito; il Tot resta negli export.
+    // Ogni azione ha le 4 sotto-colonne di esito più il totale dei palloni.
     const celle = within(riga).getAllByRole('cell');
-    expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['1', '·', '·', '1']); // attacco
-    expect(celle.slice(9, 13).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '·']); // muro
-    expect(within(table).queryByText('Tot')).not.toBeInTheDocument();
+    expect(celle.slice(6, 11).map((cell) => cell.textContent)).toEqual(['1', '·', '·', '1', '2']); // attacco
+    expect(celle.slice(11, 16).map((cell) => cell.textContent)).toEqual(['·', '1', '·', '·', '1']); // muro
+    expect(within(table).getAllByText('Tot').length).toBeGreaterThan(0);
     expect(screen.getByText('Legenda:')).toBeInTheDocument();
   });
 
@@ -876,19 +876,19 @@ describe('scout', () => {
         .find((row) => within(row).queryByText('Mario Rossi'));
       const celle = within(riga).getAllByRole('cell');
       return {
-        attacco: celle.slice(5, 9).map((cell) => cell.textContent),
-        muro: celle.slice(9, 13).map((cell) => cell.textContent),
+        attacco: celle.slice(6, 11).map((cell) => cell.textContent),
+        muro: celle.slice(11, 16).map((cell) => cell.textContent),
       };
     };
 
     // Set 1: solo l'attacco perfetto; il muro del set 2 non compare.
-    expect(leggiRiga().attacco).toEqual(['1', '·', '·', '·']);
-    expect(leggiRiga().muro).toEqual(['·', '·', '·', '·']);
+    expect(leggiRiga().attacco).toEqual(['1', '·', '·', '·', '1']);
+    expect(leggiRiga().muro).toEqual(['·', '·', '·', '·', '·']);
 
     // Cambiando set dalla barra del punteggio la tabella mostra i suoi numeri.
     fireEvent.click(screen.getByRole('button', { name: 'Set 2' }));
-    expect(leggiRiga().attacco).toEqual(['·', '·', '·', '·']);
-    expect(leggiRiga().muro).toEqual(['1', '1', '·', '·']);
+    expect(leggiRiga().attacco).toEqual(['·', '·', '·', '·', '·']);
+    expect(leggiRiga().muro).toEqual(['1', '1', '·', '·', '2']);
   });
 
   it('svuota la tabella del riepilogo quando si aggiunge un nuovo set', () => {
@@ -909,16 +909,16 @@ describe('scout', () => {
         .find((row) => within(row).queryByText('Mario Rossi'));
       return within(riga)
         .getAllByRole('cell')
-        .slice(5, 9)
+        .slice(6, 11)
         .map((cell) => cell.textContent);
     };
 
-    expect(celleAttacco()).toEqual(['1', '·', '·', '·']);
+    expect(celleAttacco()).toEqual(['1', '·', '·', '·', '1']);
 
     // Il nuovo set parte da zero e propone la formazione del set precedente.
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi set' }));
     fireEvent.click(screen.getByRole('button', { name: 'Conferma titolari' }));
-    expect(celleAttacco()).toEqual(['·', '·', '·', '·']);
+    expect(celleAttacco()).toEqual(['·', '·', '·', '·', '·']);
   });
 
   it('mostra i totali di tutti i convocati per partita e per set', () => {
@@ -961,44 +961,44 @@ describe('scout', () => {
         .getAllByRole('row')
         .find((row) => within(row).queryByText(nome));
     const azioniDi = (celle) => ({
-      ricezione: celle.slice(1, 5).map((c) => c.textContent),
-      attacco: celle.slice(5, 9).map((c) => c.textContent),
-      muro: celle.slice(9, 13).map((c) => c.textContent),
-      battuta: celle.slice(13, 17).map((c) => c.textContent),
-      sintesi: celle.slice(17, 20).map((c) => c.textContent),
+      ricezione: celle.slice(1, 6).map((c) => c.textContent),
+      attacco: celle.slice(6, 11).map((c) => c.textContent),
+      muro: celle.slice(11, 16).map((c) => c.textContent),
+      battuta: celle.slice(16, 21).map((c) => c.textContent),
+      sintesi: celle.slice(21, 24).map((c) => c.textContent),
     });
 
     // Vista partita: suddivisione completa + sintesi per tutti i convocati.
     let dettaglio = screen.getByRole('table', { name: 'Totali partita' });
     expect(azioniDi(within(rigaDi(dettaglio, 'Mario Rossi')).getAllByRole('cell'))).toEqual({
-      ricezione: ['1', '·', '·', '·'],
-      attacco: ['2', '·', '1', '1'],
-      muro: ['1', '1', '·', '·'],
-      battuta: ['·', '1', '·', '1'],
+      ricezione: ['1', '·', '·', '·', '1'],
+      attacco: ['2', '·', '1', '1', '4'],
+      muro: ['1', '1', '·', '·', '2'],
+      battuta: ['·', '1', '·', '1', '2'],
       sintesi: ['3', '2', '4'],
     });
     expect(azioniDi(within(rigaDi(dettaglio, 'Luca Neri')).getAllByRole('cell'))).toEqual({
-      ricezione: ['1', '·', '·', '1'],
-      attacco: ['·', '1', '·', '1'],
-      muro: ['·', '·', '·', '·'],
-      battuta: ['·', '·', '·', '·'],
+      ricezione: ['1', '·', '·', '1', '2'],
+      attacco: ['·', '1', '·', '1', '2'],
+      muro: ['·', '·', '·', '·', '0'],
+      battuta: ['·', '·', '·', '·', '0'],
       sintesi: ['0', '2', '2'],
     });
     expect(azioniDi(within(rigaDi(dettaglio, 'Paolo Bianchi')).getAllByRole('cell'))).toEqual({
-      ricezione: ['·', '·', '·', '·'],
-      attacco: ['·', '·', '·', '·'],
-      muro: ['·', '·', '·', '·'],
-      battuta: ['1', '·', '·', '·'],
+      ricezione: ['·', '·', '·', '·', '0'],
+      attacco: ['·', '·', '·', '·', '0'],
+      muro: ['·', '·', '·', '·', '0'],
+      battuta: ['1', '·', '·', '·', '1'],
       sintesi: ['1', '0', '0'],
     });
 
     // Totale squadra della partita.
     const totalePartita = within(dettaglio).getAllByRole('row').at(-1);
     expect(azioniDi(within(totalePartita).getAllByRole('cell'))).toEqual({
-      ricezione: ['2', '·', '·', '1'],
-      attacco: ['2', '1', '1', '2'],
-      muro: ['1', '1', '·', '·'],
-      battuta: ['1', '1', '·', '1'],
+      ricezione: ['2', '·', '·', '1', '3'],
+      attacco: ['2', '1', '1', '2', '6'],
+      muro: ['1', '1', '·', '·', '2'],
+      battuta: ['1', '1', '·', '1', '3'],
       sintesi: ['4', '4', '6'],
     });
 
@@ -1006,17 +1006,17 @@ describe('scout', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Set 1' }));
     dettaglio = screen.getByRole('table', { name: 'Totali set 1' });
     expect(azioniDi(within(rigaDi(dettaglio, 'Mario Rossi')).getAllByRole('cell'))).toEqual({
-      ricezione: ['1', '·', '·', '·'],
-      attacco: ['1', '·', '·', '1'],
-      muro: ['1', '·', '·', '·'],
-      battuta: ['·', '1', '·', '·'],
+      ricezione: ['1', '·', '·', '·', '1'],
+      attacco: ['1', '·', '·', '1', '2'],
+      muro: ['1', '·', '·', '·', '1'],
+      battuta: ['·', '1', '·', '·', '1'],
       sintesi: ['2', '1', '2'],
     });
     expect(azioniDi(within(rigaDi(dettaglio, 'Luca Neri')).getAllByRole('cell'))).toEqual({
-      ricezione: ['·', '·', '·', '1'],
-      attacco: ['·', '1', '·', '·'],
-      muro: ['·', '·', '·', '·'],
-      battuta: ['·', '·', '·', '·'],
+      ricezione: ['·', '·', '·', '1', '1'],
+      attacco: ['·', '1', '·', '·', '1'],
+      muro: ['·', '·', '·', '·', '0'],
+      battuta: ['·', '·', '·', '·', '0'],
       sintesi: ['0', '1', '1'],
     });
     const totaleSet1 = within(dettaglio).getAllByRole('row').at(-1);
@@ -1141,10 +1141,10 @@ describe('scout', () => {
     expect(screen.getByText('Errori generici:')).toBeInTheDocument();
     expect(screen.getByText('· set 1: 1')).toBeInTheDocument();
     const riga = screen.getByText('Mario Rossi').closest('tr');
-    // Colonne suddivise per esito: 1 attacco in errore (il Tot è solo nell'export).
+    // Colonne suddivise per esito più il totale dei palloni.
     const celle = within(riga).getAllByRole('cell');
-    expect(celle.slice(5, 9).map((cell) => cell.textContent)).toEqual(['·', '·', '·', '1']);
-    expect(celle).toHaveLength(17); // giocatore + 4 azioni × 4 esiti
+    expect(celle.slice(6, 11).map((cell) => cell.textContent)).toEqual(['·', '·', '·', '1', '1']);
+    expect(celle).toHaveLength(21); // giocatore + 4 azioni × 5 sotto-colonne
   });
 
   it('registra un errore avversario: punto nostro, statistica separata e annullabile', () => {
@@ -1536,7 +1536,6 @@ describe('export scout', () => {
       'Attacco',
       'Muro',
       'Battuta',
-      'Tot',
     ]);
     expect(dati.riepilogo.esiti).toEqual(['#', '+', '-', '=']);
     // I giocatori sono raggruppati per ruolo (palleggiatore, opposto,
@@ -1549,99 +1548,33 @@ describe('export scout', () => {
     expect(
       dati.riepilogo.gruppiRuolo.map((gruppo) => gruppo.righe.map((riga) => riga[0])),
     ).toEqual([[10], [7]]);
-    // Numero e nome sono colonne separate; le azioni con percentuali hanno
-    // anche Pos ed Eff, mentre Tot resta suddiviso per esito.
+    // Numero e nome sono colonne separate; ogni azione ha anche il proprio
+    // totale, mentre ricezione, attacco e battuta hanno Pos ed Eff.
     expect(dati.riepilogo.righe).toEqual([
       [
         10,
         'Mario Rossi',
-        0,
-        0,
-        0,
-        0, // ricezione
-        null,
-        null,
-        1,
-        0,
-        0,
-        1, // attacco
-        50,
-        0,
-        0,
-        0,
-        0,
-        0, // muro
-        0,
-        0,
-        0,
-        0, // battuta
-        null,
-        null,
-        1,
-        0,
-        0,
-        1, // Tot
+        0, 0, 0, 0, 0, null, null,
+        1, 0, 0, 1, 2, 50, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, null, null,
       ],
       [
         7,
         '',
-        0,
-        0,
-        0,
-        0, // ricezione
-        null,
-        null,
-        0,
-        1,
-        0,
-        0, // attacco
-        100,
-        100,
-        0,
-        0,
-        0,
-        0, // muro
-        0,
-        0,
-        0,
-        0, // battuta
-        null,
-        null,
-        0,
-        1,
-        0,
-        0, // Tot
+        0, 0, 0, 0, 0, null, null,
+        0, 1, 0, 0, 1, 100, 100,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, null, null,
       ],
     ]);
     expect(dati.riepilogo.totale).toEqual([
       '',
       'Totale',
-      0,
-      0,
-      0,
-      0, // ricezione
-      null,
-      null,
-      1,
-      1,
-      0,
-      1, // attacco
-      67,
-      33,
-      0,
-      0,
-      0,
-      0, // muro
-      0,
-      0,
-      0,
-      0, // battuta
-      null,
-      null,
-      1,
-      1,
-      0,
-      1, // Tot
+      0, 0, 0, 0, 0, null, null,
+      1, 1, 0, 1, 3, 67, 33,
+      0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, null, null,
     ]);
   });
 

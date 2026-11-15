@@ -1,7 +1,7 @@
 /* Esportazione dello scout in Excel (.xlsx) e PDF: contenuto sintetico
    (info partita, punteggi dei set e tabella riepilogo per giocatore, con
-   numero di maglia separato dal nome e ogni colonna — Tot compresa —
-   suddivisa nelle 4 sotto-colonne di esito).
+   numero di maglia separato dal nome e ogni fondamentale suddiviso nelle
+   4 sotto-colonne di esito più il totale dei palloni).
    Le librerie vengono caricate dinamicamente all'export, così non pesano
    sul caricamento iniziale dell'app. */
 import { toItalianDate } from './dates.js';
@@ -49,30 +49,29 @@ const ESITI_GRUPPO = ESITI.map(({ id }) => id);
 const SOTTO_COLONNE_PERCENTUALI = ['Pos', 'Eff'];
 
 /**
- * Gruppi di colonne del riepilogo. Ricezione, attacco e battuta hanno anche
- * Positività (`#` / palloni) ed Efficienza ((`#` - `=`) / palloni), in
- * percentuale; muro e Tot restano sulle quattro colonne di esito.
+ * Gruppi di colonne del riepilogo. Ogni fondamentale ha anche il totale dei
+ * palloni; ricezione, attacco e battuta hanno inoltre Positività ed Efficienza.
  */
 const GRUPPI_COLONNE = [
   { azione: 'ricezione', label: 'Ricezione', percentuali: true },
   { azione: 'attacco', label: 'Attacco', percentuali: true },
   { azione: 'muro', label: 'Muro', percentuali: false },
   { azione: 'battuta', label: 'Battuta', percentuali: true },
-  { azione: 'tot', label: 'Tot', percentuali: false },
 ];
 const AZIONI_PERCENTUALI = new Set(
   GRUPPI_COLONNE.filter((gruppo) => gruppo.percentuali).map((gruppo) => gruppo.azione),
 );
 
-/** Sotto-colonne di un gruppo (4 esiti, più Pos ed Eff dove previste). */
+/** Sotto-colonne di un gruppo (4 esiti, Tot e Pos/Eff dove previste). */
 function sottoColonne(gruppo) {
   return [
     ...ESITI_GRUPPO,
+    'Tot',
     ...(gruppo.percentuali ? SOTTO_COLONNE_PERCENTUALI : []),
   ];
 }
 
-/** Colonne numeriche: 4 esiti per azione + Pos/Eff + il Tot. */
+/** Colonne numeriche: 4 esiti + Tot per azione, più Pos/Eff dove previste. */
 const COLONNE_NUMERICHE = GRUPPI_COLONNE.reduce(
   (somma, gruppo) => somma + sottoColonne(gruppo).length,
   0,
@@ -98,6 +97,13 @@ const DESCRITTORI_COLONNA = GRUPPI_COLONNE.flatMap((gruppo) => [
     esito,
     percentuale: false,
   })),
+  {
+    gruppo: gruppo.azione,
+    label: 'Tot',
+    esito: null,
+    percentuale: false,
+    totale: true,
+  },
   ...(gruppo.percentuali
     ? SOTTO_COLONNE_PERCENTUALI.map((label) => ({
         gruppo: gruppo.azione,
@@ -119,7 +125,7 @@ function ruoloCanonico(ruolo) {
   return ORDINE_RUOLI.find((voce) => voce.toLowerCase() === testo) ?? '';
 }
 
-/** True se la colonna apre un nuovo gruppo (Ricezione, Attacco, Muro, Battuta, Tot). */
+/** True se la colonna apre un nuovo gruppo (Ricezione, Attacco, Muro, Battuta). */
 function apreGruppo(indice) {
   return INIZI_GRUPPO.has(indice);
 }
@@ -138,18 +144,17 @@ function percentuali(cella) {
 }
 
 /**
- * Riga del riepilogo: per ogni azione le 4 colonne di esito e, dove previste,
- * Pos ed Eff; poi le 4 colonne di esito del Tot.
+ * Riga del riepilogo: per ogni azione le 4 colonne di esito, il totale dei
+ * palloni e, dove previste, Pos ed Eff.
  */
-function numeriRiga(celle, perEsito) {
+function numeriRiga(celle) {
   return [
     ...AZIONI.flatMap((azione) => {
       const esiti = ESITI.map(({ id }) => celle[azione.id][id]);
       return AZIONI_PERCENTUALI.has(azione.id)
-        ? [...esiti, ...percentuali(celle[azione.id])]
-        : esiti;
+        ? [...esiti, celle[azione.id].tot, ...percentuali(celle[azione.id])]
+        : [...esiti, celle[azione.id].tot];
     }),
-    ...ESITI.map(({ id }) => perEsito[id]),
   ];
 }
 
@@ -158,12 +163,12 @@ function numeriRiga(celle, perEsito) {
  * intestazioni a due livelli e totale, condiviso da partita e statistiche
  * cumulative.
  */
-function bloccoRiepilogo(scout, giocatori, righe, totali, totaliPerEsito) {
+function bloccoRiepilogo(scout, giocatori, righe, totali) {
   /** Riga piatta dell'export: numero, nome e conteggi. */
   const rigaExport = (riga) => [
     riga.numero,
     riga.nome,
-    ...numeriRiga(riga.celle, riga.perEsito),
+    ...numeriRiga(riga.celle),
   ];
 
   // Ruolo di ogni numero di maglia, per raggruppare le righe invece di
@@ -203,7 +208,7 @@ function bloccoRiepilogo(scout, giocatori, righe, totali, totaliPerEsito) {
   return {
     // Numero e nome sono colonne separate; `colonne` descrive i gruppi
     // numerici con le rispettive sotto-colonne (esiti, Pos, Eff).
-    gruppi: ['N.', 'Giocatore', ...AZIONI.map((azione) => azione.label), 'Tot'],
+    gruppi: ['N.', 'Giocatore', ...AZIONI.map((azione) => azione.label)],
     esiti: ESITI.map(({ id }) => id),
     colonne: GRUPPI_COLONNE.map((gruppo) => ({
       label: gruppo.label,
@@ -211,7 +216,7 @@ function bloccoRiepilogo(scout, giocatori, righe, totali, totaliPerEsito) {
     })),
     righe: righeOrdinate.map(rigaExport),
     gruppiRuolo,
-    totale: ['', 'Totale', ...numeriRiga(totali, totaliPerEsito)],
+    totale: ['', 'Totale', ...numeriRiga(totali)],
   };
 }
 
@@ -274,7 +279,7 @@ export function costruisciExport(scout, giocatori = [], squadraNome = '', setN =
         contaErroriAvversari(scout),
       ],
     },
-    riepilogo: bloccoRiepilogo(scout, giocatori, righe, totali, totaliPerEsito),
+    riepilogo: bloccoRiepilogo(scout, giocatori, righe, totali),
     riconoscimenti,
   };
 }
@@ -534,6 +539,14 @@ export async function esportaScoutExcel(scout, giocatori, squadraNome, scouts = 
         align: 'center',
         textColor:
           value > 0 ? COL_ESITI['#'] : value < 0 ? COL_ESITI['='] : COL_MUTE,
+        ...base,
+      };
+    }
+    if (descrittore?.totale) {
+      return {
+        value,
+        align: 'center',
+        textColor: value > 0 ? COL_TESTO : COL_MUTE,
         ...base,
       };
     }
@@ -1071,6 +1084,12 @@ export async function esportaScoutPdf(scout, giocatori, squadraNome, scouts = nu
                 ? COL_ESITI_RGB['=']
                 : COL_MUTE_RGB,
         },
+      };
+    }
+    if (descrittore?.totale) {
+      return {
+        content: String(voce),
+        styles: { halign: 'center', textColor: voce > 0 ? COL_TESTO_RGB : COL_MUTE_RGB },
       };
     }
     return {

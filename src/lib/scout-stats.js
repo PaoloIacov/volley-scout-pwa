@@ -371,7 +371,7 @@ export function costruisciRiepilogo(scout, giocatori, setN = null) {
         if (isEsito(azione.esito)) cella[azione.esito] += 1;
       });
     const tot = AZIONI.reduce((somma, azione) => somma + celle[azione.id].tot, 0);
-    // Totali della riga per esito: servono alla colonna Tot suddivisa.
+    // Totali della riga per esito: mantenuti per le sintesi statistiche.
     const perEsito = Object.fromEntries(
       ESITI.map(({ id }) => [id, AZIONI.reduce((somma, azione) => somma + celle[azione.id][id], 0)]),
     );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ArrowLeftRight, ClipboardList, UsersRound } from 'lucide-react';
 import { Button, Card, Modal } from '../ui.jsx';
 import {
@@ -15,7 +15,7 @@ import {
   numeriLiberi,
 } from '../../lib/scout-stats.js';
 
-/** Gruppi di colonna: solo le azioni (il Tot resta negli export Excel/PDF). */
+/** Gruppi di colonna: ogni azione include anche il totale dei suoi palloni. */
 const GRUPPI = AZIONI;
 
 /**
@@ -24,11 +24,15 @@ const GRUPPI = AZIONI;
  * i gruppi di colonna. Con `onClic` la cella diventa un pulsante che registra
  * il dato (giocatore × azione × esito) direttamente dal riepilogo.
  */
-function Numero({ valore, esito, primo, onClic, etichetta, disabilitato }) {
+function Numero({ valore, esito, primo, onClic, etichetta, disabilitato, totale = false }) {
   const bordo = primo ? 'border-l-2 border-line-strong ' : '';
   const contenuto = valore ? (
     <span
-      className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums ring-1 ${ESITO_CLASSI[esito].tondo}`}
+      className={
+        totale
+          ? 'text-sm font-bold tabular-nums text-ink'
+          : `inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums ring-1 ${ESITO_CLASSI[esito].tondo}`
+      }
     >
       {valore}
     </span>
@@ -72,7 +76,7 @@ function Numero({ valore, esito, primo, onClic, etichetta, disabilitato }) {
  * Dalla stagione corrente la tabella mostra solo i titolari del set attivo
  * (6 di movimento + i liberi automatici): al posto della vecchia maniglia di
  * trascinamento c'è il pulsante di sostituzione, che fa entrare un giocatore
- * dalla panchina. Il Tot resta negli export Excel/PDF.
+ * dalla panchina.
  */
 export default function Riepilogo({
   scout,
@@ -197,7 +201,7 @@ export default function Riepilogo({
                   <th
                     key={gruppo.id}
                     scope="colgroup"
-                    colSpan={ESITI.length}
+                    colSpan={ESITI.length + 1}
                     className="border-b border-l-2 border-line-strong bg-panel-2 px-2 pb-1.5 pt-3 text-center font-bold text-ink"
                   >
                     {gruppo.label}
@@ -205,23 +209,32 @@ export default function Riepilogo({
                 ))}
               </tr>
               <tr className="bg-panel-2 text-ink-soft">
-                {GRUPPI.map((gruppo) =>
-                  ESITI.map((esito, i) => (
-                    <th
-                      key={`${gruppo.id}-${esito.id}`}
-                      scope="col"
-                      className={`border-b border-line-strong bg-panel-2 pb-2.5 text-center ${
-                        i === 0 ? 'border-l-2 border-line-strong' : ''
-                      }`}
-                    >
-                      <span
-                        className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[11px] font-bold ${ESITO_CLASSI[esito.id].tondo}`}
+                {GRUPPI.map((gruppo) => (
+                  <Fragment key={gruppo.id}>
+                    {ESITI.map((esito, i) => (
+                      <th
+                        key={`${gruppo.id}-${esito.id}`}
+                        scope="col"
+                        className={`border-b border-line-strong bg-panel-2 pb-2.5 text-center ${
+                          i === 0 ? 'border-l-2 border-line-strong' : ''
+                        }`}
                       >
-                        {esito.id}
-                      </span>
+                        <span
+                          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[11px] font-bold ${ESITO_CLASSI[esito.id].tondo}`}
+                        >
+                          {esito.id}
+                        </span>
+                      </th>
+                    ))}
+                    <th
+                      key={`${gruppo.id}-tot`}
+                      scope="col"
+                      className="border-b border-line-strong bg-panel-2 px-1 pb-2.5 text-center text-[10px]"
+                    >
+                      Tot
                     </th>
-                  )),
-                )}
+                  </Fragment>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -258,28 +271,36 @@ export default function Riepilogo({
                       )}
                     </div>
                   </td>
-                  {AZIONI.map((azione) =>
-                    ESITI.map((esito, i) => {
-                      const disabilitato =
-                        liberi.has(riga.numero) &&
-                        (azione.id === 'battuta' || azione.id === 'muro');
-                      return (
-                        <Numero
-                          key={`${azione.id}-${esito.id}`}
-                          valore={riga.celle[azione.id][esito.id]}
-                          esito={esito.id}
-                          primo={i === 0}
-                          disabilitato={disabilitato}
-                          etichetta={`Registra ${azione.label} ${esito.breve} per N. ${riga.numero}`}
-                          onClic={
-                            onRegistra
-                              ? () => onRegistra(riga.numero, azione.id, esito.id)
-                              : undefined
-                          }
-                        />
-                      );
-                    }),
-                  )}
+                  {AZIONI.map((azione) => (
+                    <Fragment key={azione.id}>
+                      {ESITI.map((esito, i) => {
+                        const disabilitato =
+                          liberi.has(riga.numero) &&
+                          (azione.id === 'battuta' || azione.id === 'muro');
+                        return (
+                          <Numero
+                            key={`${azione.id}-${esito.id}`}
+                            valore={riga.celle[azione.id][esito.id]}
+                            esito={esito.id}
+                            primo={i === 0}
+                            disabilitato={disabilitato}
+                            etichetta={`Registra ${azione.label} ${esito.breve} per N. ${riga.numero}`}
+                            onClic={
+                              onRegistra
+                                ? () => onRegistra(riga.numero, azione.id, esito.id)
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
+                      <Numero
+                        key={`${azione.id}-tot`}
+                        valore={riga.celle[azione.id].tot}
+                        esito="#"
+                        totale
+                      />
+                    </Fragment>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -291,16 +312,24 @@ export default function Riepilogo({
                     {totaleGenerale} azioni
                   </span>
                 </td>
-                {AZIONI.map((azione) =>
-                  ESITI.map((esito, i) => (
+                {AZIONI.map((azione) => (
+                  <Fragment key={azione.id}>
+                    {ESITI.map((esito, i) => (
+                      <Numero
+                        key={`${azione.id}-${esito.id}`}
+                        valore={totali[azione.id][esito.id]}
+                        esito={esito.id}
+                        primo={i === 0}
+                      />
+                    ))}
                     <Numero
-                      key={`${azione.id}-${esito.id}`}
-                      valore={totali[azione.id][esito.id]}
-                      esito={esito.id}
-                      primo={i === 0}
+                      key={`${azione.id}-tot`}
+                      valore={totali[azione.id].tot}
+                      esito="#"
+                      totale
                     />
-                  )),
-                )}
+                  </Fragment>
+                ))}
               </tr>
             </tfoot>
           </table>

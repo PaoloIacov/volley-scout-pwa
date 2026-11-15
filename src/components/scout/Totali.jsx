@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ClipboardList } from 'lucide-react';
 import { Card } from '../ui.jsx';
 import {
@@ -192,7 +192,7 @@ export default function Totali({ scout, giocatori = [] }) {
                   <th
                     key={azione.id}
                     scope="colgroup"
-                    colSpan={ESITI.length}
+                    colSpan={ESITI.length + 1}
                     className="border-b border-l-2 border-line-strong bg-panel-2 px-2 pb-1.5 pt-3 text-center font-bold text-ink"
                   >
                     {azione.label}
@@ -207,23 +207,32 @@ export default function Totali({ scout, giocatori = [] }) {
                 </th>
               </tr>
               <tr className="bg-panel-2 text-ink-soft">
-                {AZIONI.map((azione) =>
-                  ESITI.map((esito, i) => (
-                    <th
-                      key={`${azione.id}-${esito.id}`}
-                      scope="col"
-                      className={`border-b border-line-strong bg-panel-2 pb-2.5 text-center ${
-                        i === 0 ? 'border-l-2 border-line-strong' : ''
-                      }`}
-                    >
-                      <span
-                        className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[11px] font-bold ${ESITO_CLASSI[esito.id].tondo}`}
+                {AZIONI.map((azione) => (
+                  <Fragment key={azione.id}>
+                    {ESITI.map((esito, i) => (
+                      <th
+                        key={`${azione.id}-${esito.id}`}
+                        scope="col"
+                        className={`border-b border-line-strong bg-panel-2 pb-2.5 text-center ${
+                          i === 0 ? 'border-l-2 border-line-strong' : ''
+                        }`}
                       >
-                        {esito.id}
-                      </span>
+                        <span
+                          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[11px] font-bold ${ESITO_CLASSI[esito.id].tondo}`}
+                        >
+                          {esito.id}
+                        </span>
+                      </th>
+                    ))}
+                    <th
+                      key={`${azione.id}-tot`}
+                      scope="col"
+                      className="border-b border-line-strong bg-panel-2 px-1 py-2 text-center text-[10px] font-bold text-ink"
+                    >
+                      Tot
                     </th>
-                  )),
-                )}
+                  </Fragment>
+                ))}
                 <th
                   scope="col"
                   className="border-b border-l-2 border-line-strong bg-panel-2 px-2 py-2 text-center align-bottom text-[10px] font-bold leading-tight text-ink"
@@ -260,16 +269,23 @@ export default function Totali({ scout, giocatori = [] }) {
                     className="transition-colors even:bg-panel-2/65 hover:bg-accent/5"
                   >
                     <CellaGiocatore riga={riga} />
-                    {AZIONI.map((azione) =>
-                      ESITI.map((esito, i) => (
-                        <CellaEsito
-                          key={`${azione.id}-${esito.id}`}
-                          valore={celle?.[azione.id]?.[esito.id] ?? 0}
-                          esito={esito.id}
-                          primo={i === 0}
+                    {AZIONI.map((azione) => (
+                      <Fragment key={azione.id}>
+                        {ESITI.map((esito, i) => (
+                          <CellaEsito
+                            key={`${azione.id}-${esito.id}`}
+                            valore={celle?.[azione.id]?.[esito.id] ?? 0}
+                            esito={esito.id}
+                            primo={i === 0}
+                          />
+                        ))}
+                        <CellaSintesi
+                          key={`${azione.id}-tot`}
+                          valore={celle?.[azione.id]?.tot ?? 0}
+                          tono="text-ink"
                         />
-                      )),
-                    )}
+                      </Fragment>
+                    ))}
                     <CellaSintesi valore={sintesi.puntiFatti} tono="text-ok" primo />
                     <CellaSintesi valore={sintesi.erroriFatti} tono="text-ko" />
                     <CellaSintesi valore={sintesi.palloniAttaccati} tono="text-ink" />
@@ -285,16 +301,23 @@ export default function Totali({ scout, giocatori = [] }) {
                     {totaleVista} azioni
                   </span>
                 </td>
-                {AZIONI.map((azione) =>
-                  ESITI.map((esito, i) => (
-                    <CellaEsito
-                      key={`${azione.id}-${esito.id}`}
-                      valore={datiVista.totali[azione.id][esito.id]}
-                      esito={esito.id}
-                      primo={i === 0}
+                {AZIONI.map((azione) => (
+                  <Fragment key={azione.id}>
+                    {ESITI.map((esito, i) => (
+                      <CellaEsito
+                        key={`${azione.id}-${esito.id}`}
+                        valore={datiVista.totali[azione.id][esito.id]}
+                        esito={esito.id}
+                        primo={i === 0}
+                      />
+                    ))}
+                    <CellaSintesi
+                      key={`${azione.id}-tot`}
+                      valore={datiVista.totali[azione.id].tot}
+                      tono="text-ink"
                     />
-                  )),
-                )}
+                  </Fragment>
+                ))}
                 <CellaSintesi valore={sintesiSquadra.puntiFatti} tono="text-ok" primo />
                 <CellaSintesi valore={sintesiSquadra.erroriFatti} tono="text-ko" />
                 <CellaSintesi valore={sintesiSquadra.palloniAttaccati} tono="text-ink" />
