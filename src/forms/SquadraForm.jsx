@@ -159,10 +159,10 @@ export default function SquadraForm({ open, squadra, onCancel, onSave }) {
               <img
                 src={anteprima}
                 alt="Anteprima foto squadra"
-                className="mt-3 h-36 w-full rounded-xl border border-line object-cover"
+                className="mt-3 aspect-[4/3] w-full max-w-sm rounded-xl border border-line object-cover"
               />
             ) : (
-              <div className="mt-3 flex h-36 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-panel-2 text-ink-mute">
+              <div className="mt-3 flex aspect-[4/3] w-full max-w-sm flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-panel-2 text-ink-mute">
                 <ImageIcon size={22} />
                 <p className="text-xs">Nessuna foto: verrà usato il motivo grafico</p>
               </div>

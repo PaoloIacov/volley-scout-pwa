@@ -91,7 +91,7 @@ export default function Squadre() {
           }
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {squadre.map((squadra, index) => {
             const isActive = squadra.id === attivaId;
             const counts = contaDatiSquadra(squadra.id);
@@ -104,7 +104,7 @@ export default function Squadre() {
                   isActive ? 'border-accent/40 bg-accent/10' : ''
                 }`}
               >
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-strong text-on-accent shadow-lg shadow-accent/30 ring-1 ring-accent/30">
+                <div className="flex aspect-[4/3] w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-accent to-accent-strong text-on-accent shadow-lg shadow-accent/30 ring-1 ring-accent/30">
                   {copertina ? (
                     <img
                       src={copertina}

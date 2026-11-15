@@ -60,35 +60,35 @@ export default function Home() {
     <div className="space-y-6">
       {/* Hero */}
       <Card className="overflow-hidden p-0">
-        <div className="relative">
-          {copertina ? (
-            <img
-              src={copertina}
-              alt={`${squadra.nome} ${stagione}`.trim()}
-              className="h-56 w-full object-cover object-center sm:h-72"
-              loading="eager"
-              width={1158}
-              height={673}
-            />
-          ) : (
-            /* Nessuna foto caricata: motivo grafico generico. */
-            <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-accent via-accent-strong to-accent-hover sm:h-72">
-              <Volleyball size={72} strokeWidth={1.5} className="text-on-accent/50" />
-            </div>
-          )}
-          {/* Overlay scuro: leggibile sopra qualsiasi foto, in entrambi i temi. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
-          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-5 sm:p-6">
+        <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,540px)_1fr]">
+          <div className="aspect-[4/3] w-full overflow-hidden bg-panel-2">
+            {copertina ? (
+              <img
+                src={copertina}
+                alt={`${squadra.nome} ${stagione}`.trim()}
+                className="h-full w-full object-cover object-center"
+                loading="eager"
+                width={1600}
+                height={1200}
+              />
+            ) : (
+              /* Nessuna foto caricata: motivo grafico generico. */
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent via-accent-strong to-accent-hover">
+                <Volleyball size={72} strokeWidth={1.5} className="text-on-accent/50" />
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col justify-center gap-4 p-5 sm:p-6 lg:p-8">
             {stagione && (
-              <Badge className="w-fit bg-accent text-on-accent shadow-lg shadow-black/40">
+              <Badge className="w-fit bg-accent text-on-accent shadow-lg shadow-black/20">
                 Stagione {stagione}
               </Badge>
             )}
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl lg:text-4xl">
                 {squadra.nome}
               </h1>
-              {club && <p className="mt-1 text-sm text-zinc-300">{club}</p>}
+              {club && <p className="mt-1 text-sm text-ink-soft sm:text-base">{club}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <ButtonLink to="/scout/nuovo" variant="primary" size="sm">

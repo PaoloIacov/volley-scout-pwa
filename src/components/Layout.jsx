@@ -67,7 +67,6 @@ export default function Layout() {
   // La schermata di scouting (non l'elenco o il form) usa tutta la larghezza:
   // su desktop e tablet il rilievo dati ha bisogno di ogni pixel.
   const inScouting = /^\/scout\/(?!nuovo)/.test(pathname);
-  const larghezza = inScouting ? 'max-w-none' : 'max-w-5xl';
   const titolo = squadra?.club || squadra?.nome || 'Volley Scout';
   const sottotitolo = squadra
     ? [squadra.nome !== titolo ? squadra.nome : null, squadra.stagione].filter(Boolean).join(' · ')
@@ -76,9 +75,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-line bg-panel/85 backdrop-blur-lg">
-        <div
-          className={`mx-auto flex h-16 w-full ${larghezza} items-center justify-between gap-3 px-4 sm:px-6`}
-        >
+        <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <NavLink to="/home" className="flex min-w-0 flex-1 items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-on-accent shadow-lg shadow-accent/30">
               <Volleyball size={22} strokeWidth={2} />
@@ -107,7 +104,7 @@ export default function Layout() {
       </header>
 
       <main
-        className={`mx-auto w-full ${larghezza} flex-1 px-4 sm:px-6 ${
+        className={`w-full flex-1 px-4 sm:px-6 lg:px-8 ${
           inScouting ? 'pt-4 pb-6' : 'pt-6 pb-10'
         }`}
       >
