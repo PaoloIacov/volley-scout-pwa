@@ -277,12 +277,12 @@ export default function ScoutSessione() {
    * # fa segnare un punto a noi (tranne che per la ricezione), = un punto
    * all'avversario.
    */
-  const registra = (numero, azione, esito) => {
+  const registra = (numero, azione, esito, setN = scout.setCorrente) => {
     const punti = puntiPerEsito(esito, azione);
     aggiorna({
       ...scout,
-      azioni: [...scout.azioni, { ts: Date.now(), set: scout.setCorrente, numero, azione, esito }],
-      sets: applicaPunti(scout.sets, scout.setCorrente, punti.nostro, punti.loro),
+      azioni: [...scout.azioni, { ts: Date.now(), set: setN, numero, azione, esito }],
+      sets: applicaPunti(scout.sets, setN, punti.nostro, punti.loro),
     });
   };
 
@@ -495,7 +495,12 @@ export default function ScoutSessione() {
           onScegliFormazione={() => setSetFormazione(scout.setCorrente)}
         />
       ) : (
-        <Totali scout={scout} giocatori={giocatori} />
+        <Totali
+          scout={scout}
+          giocatori={giocatori}
+          onAggiungi={registra}
+          onRimuovi={rimuoviAzione}
+        />
       )}
 
       <FormazioneModal

@@ -10,6 +10,7 @@ import {
   sintesiCelle,
 } from '../../lib/scout-stats.js';
 import Riconoscimenti from './Riconoscimenti.jsx';
+import ModificaGiocatoreModal from './ModificaGiocatoreModal.jsx';
 
 /** Cella di un esito: badge colorato, punto quando il valore è zero. */
 function CellaEsito({ valore, esito, primo }) {
@@ -50,17 +51,24 @@ function CellaSintesi({ valore, tono, primo }) {
 }
 
 /** Numero di maglia e nome del giocatore, come nella tabella del riepilogo. */
-function CellaGiocatore({ riga }) {
+function CellaGiocatore({ riga, onClick }) {
   return (
     <td className="border-t border-line-strong/70 px-3 py-2">
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`Modifica dati di ${riga.nome || `N. ${riga.numero}`}`}
+        className="flex w-full items-center gap-2 text-left"
+      >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-panel-2 text-sm font-bold text-ink ring-1 ring-line-strong tabular-nums">
           {riga.numero}
         </span>
         {riga.nome && (
-          <span className="min-w-0 truncate text-sm font-medium text-ink">{riga.nome}</span>
+          <span className="min-w-0 truncate text-sm font-medium text-ink underline decoration-line-strong underline-offset-2">
+            {riga.nome}
+          </span>
         )}
-      </div>
+      </button>
     </td>
   );
 }
@@ -74,12 +82,18 @@ function CellaGiocatore({ riga }) {
  * quelli del singolo set; la tabella in basso mostra sempre, per ogni
  * giocatore, il numero di azioni set per set e il totale partita.
  */
-export default function Totali({ scout, giocatori = [] }) {
+export default function Totali({
+  scout,
+  giocatori = [],
+  onAggiungi,
+  onRimuovi,
+}) {
   const partita = costruisciRiepilogo(scout, giocatori);
   const perSet = new Map(
     scout.sets.map((set) => [set.n, costruisciRiepilogo(scout, giocatori, set.n)]),
   );
   const [vista, setVista] = useState('partita');
+  const [numeroModifica, setNumeroModifica] = useState(null);
 
   const opzioni = [
     { value: 'partita', label: 'Partita' },
@@ -268,7 +282,7 @@ export default function Totali({ scout, giocatori = [] }) {
                     key={riga.numero}
                     className="transition-colors even:bg-panel-2/65 hover:bg-accent/5"
                   >
-                    <CellaGiocatore riga={riga} />
+                    <CellaGiocatore riga={riga} onClick={() => setNumeroModifica(riga.numero)} />
                     {AZIONI.map((azione) => (
                       <Fragment key={azione.id}>
                         {ESITI.map((esito, i) => (
@@ -393,7 +407,7 @@ export default function Totali({ scout, giocatori = [] }) {
                   key={riga.numero}
                   className="transition-colors even:bg-panel-2/65 hover:bg-accent/5"
                 >
-                  <CellaGiocatore riga={riga} />
+                  <CellaGiocatore riga={riga} onClick={() => setNumeroModifica(riga.numero)} />
                   {scout.sets.map((set) => {
                     const rigaSet = perSet
                       .get(set.n)
@@ -451,6 +465,15 @@ export default function Totali({ scout, giocatori = [] }) {
           </table>
         </div>
       </Card>
+      <ModificaGiocatoreModal
+        open={numeroModifica !== null}
+        numero={numeroModifica}
+        nome={partita.righe.find((riga) => riga.numero === numeroModifica)?.nome}
+        scout={scout}
+        onClose={() => setNumeroModifica(null)}
+        onAggiungi={onAggiungi}
+        onRimuovi={onRimuovi}
+      />
     </div>
   );
 }

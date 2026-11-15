@@ -1393,6 +1393,39 @@ describe('scout', () => {
     ]);
   });
 
+  it('consente di rimuovere un dato errato da un set precedente', () => {
+    seedScout({
+      sets: [
+        { n: 1, nostro: 1, loro: 0 },
+        { n: 2, nostro: 0, loro: 0 },
+        { n: 3, nostro: 0, loro: 0 },
+        { n: 4, nostro: 1, loro: 0 },
+      ],
+      azioni: [
+        { id: 'a1', ts: 1, set: 1, numero: 10, azione: 'attacco', esito: '#' },
+        { id: 'a2', ts: 2, set: 4, numero: 10, azione: 'attacco', esito: '#' },
+      ],
+      formazioni: [{ set: 1, numeri: [10] }],
+    });
+    seedRosa();
+    renderAt('/scout/sc1');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Totali' }));
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Modifica dati di Mario Rossi' })[0],
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Modifica dati · Mario Rossi' });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Diminuisci Attacco #' }),
+    );
+
+    const scout = JSON.parse(localStorage.getItem('scout'))[0];
+    expect(scout.azioni).toHaveLength(1);
+    expect(scout.azioni[0].id).toBe('a2');
+    expect(scout.sets.find((set) => set.n === 1)).toMatchObject({ nostro: 0, loro: 0 });
+    expect(scout.sets.find((set) => set.n === 4)).toMatchObject({ nostro: 1, loro: 0 });
+  });
+
   it('mostra solo i titolari del set e li sostituisce dalla tabella', () => {
     seedScout();
     seedRosaGrande();
