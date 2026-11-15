@@ -1,19 +1,19 @@
 /**
- * Genera la favicon e le icone PWA: una palla da pallavolo (geometria lucide)
+ * Genera la favicon e le icone PWA: una palla da pallavolo simmetrica
  * con pannelli giallo, bianco e blu, cuciture e contorno blu notte.
  *
  *   npm run icons
  *
  * Output:
  *   public/favicon.ico            (16/32/48, sfondo trasparente)
- *   public/icons/icon-*.png       (72…512, sfondo blu notte, adatto a maskable)
+ *   public/icons/icon-*.png       (72…512, sfondo trasparente, palla full-bleed)
  */
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(dirname(import.meta.url.startsWith('file:') ? fileURLToPath(import.meta.url) : import.meta.url), '..');
 
 /* ------------------------------------------------------------------ colori */
 
@@ -22,17 +22,23 @@ const COLORI = {
   bianco: [255, 255, 255],
   blu: [37, 99, 235],
   cuciture: [11, 32, 80], // blu notte
-  sfondo: [8, 18, 49], // blu notte scuro (icone PWA)
 };
-const PANNELLI = [COLORI.giallo, COLORI.bianco, COLORI.blu];
 
-/* ------------------------------------------------------- geometria (lucide) */
+/* ------------------------------------------------------- geometria simmetrica */
 
 const CX = 12;
 const CY = 12;
-const R = 10; // raggio del cerchio nell viewBox 24×24
-const HALF_CUCITURA = 0.4; // mezza larghezza delle cuciture (unità svg)
-const HALF_CONTORNO = 0.45; // mezzo spessore del contorno
+const R = 10; // raggio del cerchio nel viewBox 24×24
+const HALF_CUCITURA = 0.36; // mezza larghezza delle cuciture (unità svg)
+const HALF_CONTORNO = 0.42; // mezzo spessore del contorno
+const BASE_ROT_DEG = -75; // inclinazione iniziale del pallone
+
+function rotTranslate([x, y], deg) {
+  const rad = (deg * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  return [CX + x * c - y * s, CY + x * s + y * c];
+}
 
 /** Arco SVG (endpoint → centro, specifica W3C) restituito come polilinea. */
 function arcPoints(x1, y1, rx, ry, phiDeg, largeArc, sweep, x2, y2, steps = 256) {
@@ -88,16 +94,32 @@ function arcPoints(x1, y1, rx, ry, phiDeg, largeArc, sweep, x2, y2, steps = 256)
   return points;
 }
 
-/** Le 5 cuciture dell'icona pallavolo di lucide (viewBox 24×24). */
+/** Le 9 cuciture simmetriche (3 bracci principali + 2 strisce per settore, ruotati di 120°). */
 function cuciture() {
-  return [
-    arcPoints(11, 7, 16, 16, 20, 1, 1, 21.98, 11.362),
-    arcPoints(12, 12, 13, 13, 0, 0, 1, 3.34, 17),
-    arcPoints(16.83, 13.634, 16, 16, 0, 0, 1, 7.563, 20.962),
-    arcPoints(20.66, 17, 13, 13, 0, 0, 0, 12, 12),
-    arcPoints(12, 12, 13, 13, 0, 0, 1, 12, 2),
-    arcPoints(8.17, 15.366, 16, 16, 0, 0, 1, 6.457, 3.676),
-  ];
+  // Braccio principale in coordinate locali: dal centro (0,0) al bordo (R,0)
+  const armLocal = arcPoints(0, 0, 12.5, 12.5, 0, 0, 1, R, 0, 256);
+
+  // Punti di partenza lungo il braccio principale per le 2 cuciture interne del settore
+  const p1 = armLocal[Math.round(armLocal.length * 0.33)];
+  const p2 = armLocal[Math.round(armLocal.length * 0.67)];
+
+  // Punti di arrivo sul bordo esterno dentro il settore (tra 0° e 120°):
+  // p1 (più interno) va a 80°, p2 (più esterno) va a 40° così le strisce sono parallele e non si incrociano.
+  const end1 = [R * Math.cos((80 * Math.PI) / 180), R * Math.sin((80 * Math.PI) / 180)];
+  const end2 = [R * Math.cos((40 * Math.PI) / 180), R * Math.sin((40 * Math.PI) / 180)];
+
+  // Cuciture secondarie in coordinate locali (stessa curvatura morbida di armLocal)
+  const seam1Local = arcPoints(p1[0], p1[1], 14, 14, 0, 0, 1, end1[0], end1[1], 256);
+  const seam2Local = arcPoints(p2[0], p2[1], 14, 14, 0, 0, 1, end2[0], end2[1], 256);
+
+  const lines = [];
+  for (let k = 0; k < 3; k += 1) {
+    const deg = BASE_ROT_DEG + k * 120;
+    lines.push(armLocal.map((pt) => rotTranslate(pt, deg)));
+    lines.push(seam1Local.map((pt) => rotTranslate(pt, deg)));
+    lines.push(seam2Local.map((pt) => rotTranslate(pt, deg)));
+  }
+  return lines;
 }
 
 /* ------------------------------------------------------- campo ad alta ris. */
@@ -206,14 +228,33 @@ function buildField({ sfondo = null } = {}) {
     stats.push({ id: rid, area, cx: sx / area, cy: sy / area });
   }
 
-  // 5. colori: le regioni ordinate per angolo alternano giallo/bianco/blu
-  const ordinate = [...stats].sort(
-    (a, b) =>
-      Math.atan2(a.cy - CY * UNIT, a.cx - CX * UNIT) -
-      Math.atan2(b.cy - CY * UNIT, b.cx - CX * UNIT)
-  );
+  // 5. colori: 3 settori simmetrici a 120°, ogni settore ha 3 strisce (interna, media, esterna)
+  // Colorazione ciclica (G,B,G) -> (W,G,W) -> (B,W,B): bilanciata (3 pannelli per colore)
+  // e nessun pannello confina mai con un altro dello stesso colore.
+  const SECTOR_COLORS = [
+    [COLORI.giallo, COLORI.blu, COLORI.giallo],
+    [COLORI.bianco, COLORI.giallo, COLORI.bianco],
+    [COLORI.blu, COLORI.bianco, COLORI.blu],
+  ];
+  // Punti campione locali (r, angolo in gradi) per le 3 strisce del settore 0
+  const SAMPLE_POLAR = [
+    [5.5, 98], // striscia interna (tra seam1 e braccio 1)
+    [7.2, 52], // striscia media (tra seam2 e seam1)
+    [8.6, 18], // striscia esterna (tra braccio 0 e seam2)
+  ];
   const coloreRegione = new Map();
-  ordinate.forEach((r, i) => coloreRegione.set(r.id, PANNELLI[i % PANNELLI.length]));
+  for (let k = 0; k < 3; k += 1) {
+    const deg = BASE_ROT_DEG + k * 120;
+    for (let s = 0; s < 3; s += 1) {
+      const [sr, sang] = SAMPLE_POLAR[s];
+      const rad = (sang * Math.PI) / 180;
+      const [sx, sy] = rotTranslate([sr * Math.cos(rad), sr * Math.sin(rad)], deg);
+      const gx = Math.min(N - 1, Math.max(0, Math.round(sx * UNIT)));
+      const gy = Math.min(N - 1, Math.max(0, Math.round(sy * UNIT)));
+      const rid = region[gy * N + gx];
+      if (rid >= 0) coloreRegione.set(rid, SECTOR_COLORS[k][s]);
+    }
+  }
 
   // 6. componi il campo RGBA
   const field = new Uint8Array(N * N * 4);
@@ -368,21 +409,20 @@ function encodeICO(entries) {
 function main() {
   console.log('Costruisco il campo del pallavolo…');
   const fieldTrasparente = buildField();
-  const fieldConSfondo = buildField({ sfondo: COLORI.sfondo });
 
   mkdirSync(resolve(ROOT, 'public', 'icons'), { recursive: true });
 
-  // Favicon: sfondo trasparente, palla al 90% del lato
+  // Favicon: sfondo trasparente, palla al 94% del lato
   const icoEntries = [16, 32, 48].map((size) => ({
     size,
-    png: encodePNG(size, size, resize(fieldTrasparente, size, 0.9)),
+    png: encodePNG(size, size, resize(fieldTrasparente, size, 0.94)),
   }));
   writeFileSync(resolve(ROOT, 'public', 'favicon.ico'), encodeICO(icoEntries));
   console.log('  public/favicon.ico (16, 32, 48)');
 
-  // Icone PWA: sfondo blu notte, palla all'80% (zona sicura per maskable)
+  // Icone PWA: sfondo trasparente, palla al 96% così l'intera icona coincide col pallone
   for (const size of [72, 96, 128, 144, 152, 192, 384, 512]) {
-    const rgba = resize(fieldConSfondo, size, 0.8);
+    const rgba = resize(fieldTrasparente, size, 0.96);
     writeFileSync(resolve(ROOT, 'public', 'icons', `icon-${size}x${size}.png`), encodePNG(size, size, rgba));
     console.log(`  public/icons/icon-${size}x${size}.png`);
   }
@@ -391,8 +431,8 @@ function main() {
   const preview = resolve(ROOT, 'scripts', '.preview');
   mkdirSync(preview, { recursive: true });
   for (const size of [16, 48, 192, 512]) {
-    writeFileSync(resolve(preview, `trasparente-${size}.png`), encodePNG(size, size, resize(fieldTrasparente, size, 0.9)));
-    writeFileSync(resolve(preview, `sfondo-${size}.png`), encodePNG(size, size, resize(fieldConSfondo, size, 0.8)));
+    writeFileSync(resolve(preview, `trasparente-${size}.png`), encodePNG(size, size, resize(fieldTrasparente, size, 0.94)));
+    writeFileSync(resolve(preview, `sfondo-${size}.png`), encodePNG(size, size, resize(fieldTrasparente, size, 0.96)));
   }
   console.log('  anteprime in scripts/.preview');
 }
