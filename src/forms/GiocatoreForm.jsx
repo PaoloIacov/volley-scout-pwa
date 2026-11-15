@@ -91,7 +91,7 @@ export default function GiocatoreForm({ open, giocatore, onCancel, onSave }) {
         <div className="sm:col-span-2">
           <Field label="Foto profilo" hint="Facoltativa: viene mostrata nella rosa e nella pagina del giocatore.">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-line-strong bg-panel-2 text-ink-mute">
+              <div className="flex aspect-[4/5] w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-line-strong bg-panel-2 text-ink-mute">
                 {form.values.foto ? (
                   <img
                     src={form.values.foto}

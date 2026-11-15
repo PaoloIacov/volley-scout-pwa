@@ -157,7 +157,7 @@ export default function Squadra() {
                     aria-label={`Apri il profilo di ${giocatore.nome} ${giocatore.cognome}`}
                     className="group flex min-w-0 flex-1 items-center gap-4 py-2"
                   >
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-strong text-lg font-bold text-on-accent shadow-lg shadow-accent/30">
+                    <div className="flex aspect-[4/5] w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-accent to-accent-strong text-lg font-bold text-on-accent shadow-lg shadow-accent/30">
                       {giocatore.foto ? (
                         <img
                           src={giocatore.foto}

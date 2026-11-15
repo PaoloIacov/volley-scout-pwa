@@ -118,7 +118,7 @@ export default function Giocatore() {
       {/* Intestazione con foto e anagrafica */}
       <Card className="p-0">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
-          <div className="flex h-28 w-28 shrink-0 items-center justify-center self-center overflow-hidden rounded-3xl bg-gradient-to-br from-accent to-accent-strong text-3xl font-bold text-on-accent shadow-xl shadow-accent/30 sm:self-start">
+          <div className="flex aspect-[4/5] w-28 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-strong text-3xl font-bold text-on-accent shadow-xl shadow-accent/30 sm:self-start">
             {giocatore.foto ? (
               <img
                 src={giocatore.foto}
